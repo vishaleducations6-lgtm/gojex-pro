@@ -28,24 +28,27 @@ def dashboard():
     if not session.get('logged_in'): return redirect('/')
     return render_template('dashboard.html')
 
+# 👇 Ye naya route add kiya hai taaki Manual button kaam kare
+@app.route('/manual')
+def manual():
+    if not session.get('logged_in'): return redirect('/')
+    return "<h1 style='color:white; background:black; padding:20px;'>📤 Manual Upload Page Jald Aa Raha Hai!</h1><br><a href='/dashboard' style='color:yellow;'>Back to Dashboard</a>"
+
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
     
-    # Jab tu video upload karke submit dabayega
     if request.method == 'POST':
         file = request.files.get('reel_video')
         if file:
-            filename = file.filename.replace(" ", "_") # Space hata dega error se bachne ke liye
+            filename = file.filename.replace(" ", "_")
             
-            # 1. Video seedha Supabase cloud me jayegi
             supabase.storage.from_("reels").upload(
                 file=file.read(), 
                 path=filename, 
                 file_options={"content-type": "video/mp4"}
             )
             
-            # 2. Upload hone ke baad permanent public link nikal lenge
             public_url = supabase.storage.from_("reels").get_public_url(filename)
             return f"<h2 style='color:green;'>✅ Upload Success!</h2><p>Video URL: <a href='{public_url}'>{public_url}</a></p><br><a href='/templates'>Go Back</a>"
 
