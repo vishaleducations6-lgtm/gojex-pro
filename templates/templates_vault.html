@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gojex PRO | Vault</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: Arial; padding: 50px; text-align: center; }
+        .box { background: #1e293b; padding: 40px; border-radius: 12px; display: inline-block; border: 1px solid #eab308; }
+        .btn { background: #eab308; padding: 12px 25px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; }
+        .btn:hover { background: #ca8a04; }
+        a { color: #94a3b8; text-decoration: none; display: block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1 style="color: #eab308;">📁 Templates Cloud Vault</h1>
+    <p>Upload videos directly to your permanent Supabase bucket.</p>
+    
+    <div class="box">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="reel_video" accept="video/mp4" required style="color: white;"><br>
+            <button type="submit" class="btn">☁️ Upload to Cloud</button>
+        </form>
+    </div>
+    
+    <a href="/dashboard">🔙 Back to Dashboard</a>
+</body>
+</html>
