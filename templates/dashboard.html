@@ -25,17 +25,16 @@
         <h3>🔌 API Connections</h3>
         
         {% if is_connected %}
-            <div class="status-badge">✅ Connected to Instagram Bot</div>
-            <p style="color: #94a3b8; font-size: 12px; margin-top: 15px;">Your ID: 17841437629311591 is linked and ready for Blast Mode.</p>
+            <div class="status-badge">✅ Connected via OAuth</div>
+            <p style="color: #94a3b8; font-size: 12px; margin-top: 15px;">Your App is successfully linked as a Tester.</p>
         {% else %}
             <p style="color: #cbd5e1; font-size: 14px;">Authorize your Gojex Bot to enable automated publishing.</p>
-            <a href="/connect_bot" class="btn-ig" style="width: 250px; margin: 20px auto 0 auto; color: white;">
-                🔗 Connect Instagram
+            <a href="/meta_login" class="btn-ig" style="width: 250px; margin: 20px auto 0 auto; color: white;">
+                🔗 Connect via Meta
             </a>
         {% endif %}
     </div>
 
-    <!-- Features -->
     <div class="box">
         <h2>📁 Batch Templates Vault</h2>
         <p>Manage, caption, and schedule multi-reels in the cloud.</p>
