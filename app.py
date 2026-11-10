@@ -11,69 +11,41 @@ app.secret_key = "gojex_super_secret_key_pro"
 ADMIN_USER = "zenitsu"
 ADMIN_PASS = "godcreation"
 
-# ☁️ Supabase Cloud Vault Config
+# ☁️ Supabase Config
 SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 🌐 Meta App Config (Dynamic Connect Ke Liye)
-META_APP_ID = "1412413731007169"
-META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b" 
-REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
-
-# 🔥 Permanent Keys for Background Blast Mode (Taaki error na aaye)
+# 🔥 Tera Permanent Bot Token & Insta ID (No App ID/Secret required!)
 IG_ID = "17841437629311591"
 PERMANENT_META_TOKEN = "EAAXnmnSu1ZBEBSzuLlYT6vj4ZBObTFuOzw5P3VYG1YcseUSCW7Tj9aAdNvUDlPOwMtvZBTuaoGoqTHtzbHfpi7PvlnNHJiqQdJL8ie8DQ55YAnsy20mGifNZC7PXePJQF98FCZASVUvtv4XIzmMYT7yBfCqoEvteAbgWY2uhb6nNA4EK3MxYzQLguQm663uuGWAZDZD"
 
-
 # --- BACKGROUND PUBLISHING BOT ---
 def blast_reels_to_instagram():
-    print("🔥 Blast Mode Initiated in Background...")
-    # Get all pending reels
+    print("🔥 Blast Mode Initiated...")
     res = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at").execute()
-    pending_reels = res.data
-
-    for reel in pending_reels:
+    
+    for reel in res.data:
         try:
-            # 1. Create Meta Container
+            # Container
             create_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media"
-            payload = {
-                "media_type": "REELS",
-                "video_url": reel['video_url'],
-                "caption": reel['caption'],
-                "access_token": PERMANENT_META_TOKEN
-            }
-            if reel.get('cover_url'):
-                payload['cover_url'] = reel['cover_url']
-
-            print(f"📦 Creating container for Reel ID: {reel['id']}")
+            payload = {"media_type": "REELS", "video_url": reel['video_url'], "caption": reel['caption'], "access_token": PERMANENT_META_TOKEN}
+            if reel.get('cover_url'): payload['cover_url'] = reel['cover_url']
+            
             create_res = requests.post(create_url, data=payload).json()
             creation_id = create_res.get("id")
+            if not creation_id: continue
 
-            if not creation_id:
-                print("❌ Container Error:", create_res)
-                continue
+            time.sleep(30) # Processing time
 
-            # 2. Wait for Instagram to process the video (Meta takes ~30s)
-            print(f"⏳ Waiting 30 seconds for Instagram processing...")
-            time.sleep(30)
-
-            # 3. Publish to Feed
-            publish_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media_publish"
-            pub_res = requests.post(publish_url, data={"creation_id": creation_id, "access_token": PERMANENT_META_TOKEN}).json()
-
+            # Publish
+            pub_res = requests.post(f"https://graph.facebook.com/v18.0/{IG_ID}/media_publish", data={"creation_id": creation_id, "access_token": PERMANENT_META_TOKEN}).json()
             if "id" in pub_res:
-                print(f"✅ SUCCESSFULLY POSTED! Post ID: {pub_res['id']}")
-                # Update status in Database
                 supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
-            else:
-                print("❌ Publish Error:", pub_res)
-                
         except Exception as e:
-            print("Error processing reel:", e)
+            print("Error:", e)
 
-
-# --- FLASK ROUTES ---
+# --- ROUTES ---
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if session.get('logged_in'): return redirect('/dashboard')
@@ -87,44 +59,19 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if not session.get('logged_in'): return redirect('/')
-    # UI me connection badge dikhane ke liye
-    is_connected = session.get('meta_connected', False)
-    return render_template('dashboard.html', is_connected=is_connected)
+    return render_template('dashboard.html', is_connected=session.get('meta_connected', False))
 
-@app.route('/meta_login')
-def meta_login():
+# 👇 Yahan sabse simple Connect Logic hai (Bina Facebook Redirect ke)
+@app.route('/connect_bot')
+def connect_bot():
     if not session.get('logged_in'): return redirect('/')
-    # Official Facebook Popup URL
-    auth_url = f"https://www.facebook.com/v18.0/dialog/oauth?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&scope=pages_show_list,instagram_basic,instagram_content_publish&response_type=code"
-    return redirect(auth_url)
-
-@app.route('/meta_callback')
-def meta_callback():
-    code = request.args.get('code')
-    if not code:
-        return "❌ Login Cancelled by User.<br><a href='/dashboard'>Back</a>"
-    
-    # Code ko Token me badalna (Hack)
-    token_url = f"https://graph.facebook.com/v18.0/oauth/access_token?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&client_secret={META_APP_SECRET}&code={code}"
-    token_res = requests.get(token_url).json()
-    
-    access_token = token_res.get('access_token')
-    if access_token:
-        session['meta_token'] = access_token
-        session['meta_connected'] = True
-        return redirect('/dashboard')
-    else:
-        return f"❌ Token Error: {token_res}"
-
-@app.route('/manual')
-def manual():
-    if not session.get('logged_in'): return redirect('/')
-    return "<h1 style='color:white; background:black; padding:20px;'>📤 Manual Upload Jald Aa Raha Hai!</h1><br><a href='/dashboard' style='color:yellow;'>Back</a>"
+    # Seedha VIP token ko session me activate kar diya
+    session['meta_connected'] = True
+    return redirect('/dashboard')
 
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
-    
     if request.method == 'POST':
         file = request.files.get('reel_video')
         cover = request.files.get('cover_image')
@@ -132,26 +79,17 @@ def templates():
         
         if file:
             filename = file.filename.replace(" ", "_")
-            try:
-                supabase.storage.from_("reels").upload(file=file.read(), path=filename, file_options={"content-type": "video/mp4"})
-                public_url = supabase.storage.from_("reels").get_public_url(filename)
-                
-                cover_url = ""
-                if cover and cover.filename:
-                    cover_name = "cover_" + cover.filename.replace(" ", "_")
-                    supabase.storage.from_("reels").upload(file=cover.read(), path=cover_name, file_options={"content-type": cover.content_type})
-                    cover_url = supabase.storage.from_("reels").get_public_url(cover_name)
+            supabase.storage.from_("reels").upload(file=file.read(), path=filename, file_options={"content-type": "video/mp4"})
+            public_url = supabase.storage.from_("reels").get_public_url(filename)
+            
+            cover_url = ""
+            if cover and cover.filename:
+                cover_name = "cover_" + cover.filename.replace(" ", "_")
+                supabase.storage.from_("reels").upload(file=cover.read(), path=cover_name, file_options={"content-type": cover.content_type})
+                cover_url = supabase.storage.from_("reels").get_public_url(cover_name)
 
-                supabase.table("reels_bank").insert({
-                    "video_url": public_url,
-                    "cover_url": cover_url,
-                    "caption": caption,
-                    "status": "pending"
-                }).execute()
-                
-                return redirect('/templates')
-            except Exception as e:
-                return f"<h2 style='color:red;'>❌ Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
+            supabase.table("reels_bank").insert({"video_url": public_url, "cover_url": cover_url, "caption": caption, "status": "pending"}).execute()
+            return redirect('/templates')
 
     response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
     return render_template('templates_vault.html', reels=response.data)
@@ -159,28 +97,16 @@ def templates():
 @app.route('/post_batch', methods=['POST'])
 def post_batch():
     if not session.get('logged_in'): return redirect('/')
-    
-    # Threading taaki button dabate hi screen load na ho
-    thread = threading.Thread(target=blast_reels_to_instagram)
-    thread.start()
-    
-    return """
-    <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
-        <h1 style="color:#22c55e;">🚀 Blast Initiated!</h1>
-        <p>GojexBot is working in the background. Your reels will appear on Instagram one by one.</p>
-        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel for Meta to process).</p>
-        <br><br>
-        <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
-    </body>
-    """
+    threading.Thread(target=blast_reels_to_instagram).start()
+    return "<body style='background:#0f172a; color:#22c55e; text-align:center; padding:50px;'><h1>🚀 Blast Initiated!</h1><p>Reels posting in background...</p><br><a href='/templates' style='color:yellow;'>Back</a></body>"
+
+@app.route('/manual')
+def manual(): return "<h1 style='color:white; background:black;'>📤 Manual Jald Aa Raha Hai!</h1>"
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
-    session.pop('meta_connected', None)
-    session.pop('meta_token', None)
+    session.clear()
     return redirect('/')
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)), debug=True)
