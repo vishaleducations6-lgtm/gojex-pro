@@ -12,7 +12,7 @@
         .connect-box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px dashed #e1306c; max-width: 500px; margin: 0 auto 40px auto; }
         .btn-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
         .btn-ig:hover { opacity: 0.9; }
-        .status-badge { background: #22c55e; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 14px; }
+        .status-badge { background: #22c55e; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 14px; margin: 5px; }
     </style>
 </head>
 <body>
@@ -22,19 +22,32 @@
 
     <!-- 🔗 Instagram Connection Module -->
     <div class="connect-box">
-        <h3>🔌 API Connections</h3>
+        <h3>🔌 Connected Accounts</h3>
         
-        {% if is_connected %}
-            <div class="status-badge">✅ Connected via OAuth</div>
-            <p style="color: #94a3b8; font-size: 12px; margin-top: 15px;">Your App is successfully linked as a Tester.</p>
+        {% if accounts %}
+            <div style="margin-bottom: 20px;">
+                {% for acc in accounts %}
+                    <!-- Dynamic Badges with Username -->
+                    <div class="status-badge">✅ @{{ acc.username }}</div>
+                {% endfor %}
+            </div>
+            
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 15px;">{{ accounts|length }} Account(s) ready for Blast Mode.</p>
+            
+            <!-- Connect Another Account Button -->
+            <a href="/meta_login" class="btn-ig" style="width: 250px; margin: 20px auto 0 auto; color: white;">
+                ➕ Connect Another Account
+            </a>
         {% else %}
             <p style="color: #cbd5e1; font-size: 14px;">Authorize your Gojex Bot to enable automated publishing.</p>
+            <!-- First Time Connect Button -->
             <a href="/meta_login" class="btn-ig" style="width: 250px; margin: 20px auto 0 auto; color: white;">
-                🔗 Connect via Meta
+                🔗 Connect Instagram
             </a>
         {% endif %}
     </div>
 
+    <!-- Features -->
     <div class="box">
         <h2>📁 Batch Templates Vault</h2>
         <p>Manage, caption, and schedule multi-reels in the cloud.</p>
