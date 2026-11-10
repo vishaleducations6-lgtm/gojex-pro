@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = "gojex_super_secret_key_pro"
 
 ADMIN_USER = "zenitsu"
-ADMIN_PASS = "godcreation"
+ADMIN_PASS = "vishal@"
 
 # ☁️ Supabase Config
 SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
