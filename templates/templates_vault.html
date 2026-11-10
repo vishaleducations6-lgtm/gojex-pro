@@ -7,49 +7,86 @@
         body { background: #0f172a; color: white; font-family: Arial; padding: 30px; }
         .header { text-align: center; margin-bottom: 40px; }
         .upload-box { background: #1e293b; padding: 20px; border-radius: 12px; text-align: center; border: 1px dashed #eab308; max-width: 500px; margin: 0 auto 40px auto; }
-        input, textarea { width: 90%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; font-family: Arial;}
+        input, textarea, select { width: 90%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; font-family: Arial;}
         .btn { background: #eab308; padding: 10px 20px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: black; }
         .btn:hover { background: #ca8a04; }
         
-        /* VIP Gallery Grid */
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 20px; }
+        .batch-btn { background: #ef4444; color: white; padding: 10px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .batch-btn:hover { background: #dc2626; box-shadow: 0 0 10px red; }
+
         .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-        .reel-card { background: #1e293b; border-radius: 10px; padding: 15px; border: 1px solid #334155; }
-        .reel-card video { width: 100%; border-radius: 8px; background: #000; height: 350px; object-fit: cover;}
+        .reel-card { background: #1e293b; border-radius: 10px; padding: 15px; border: 1px solid #334155; position: relative; }
+        .reel-card video { width: 100%; border-radius: 8px; background: #000; height: 350px; object-fit: cover; }
+        .cover-badge { position: absolute; top: 25px; left: 25px; background: #eab308; color: black; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         .caption-text { font-size: 14px; color: #cbd5e1; margin: 10px 0; height: 40px; overflow: hidden; }
-        .post-btn { width: 100%; background: #22c55e; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .post-btn:hover { background: #16a34a; }
+        
+        /* Modal UI */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #1e293b; padding: 30px; border-radius: 12px; width: 400px; text-align: center; border: 1px solid #eab308; }
+        .close-btn { float: right; color: red; cursor: pointer; font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 style="color: #eab308;">📁 Batch Templates Gallery</h1>
+        <h1 style="color: #eab308;">📁 Batch Templates Vault</h1>
         <a href="/dashboard" style="color: #94a3b8; text-decoration: none;">🔙 Back to Dashboard</a>
     </div>
 
     <!-- Upload Section -->
     <div class="upload-box">
-        <h3>➕ Add New Template</h3>
+        <h3>➕ Add Template with Cover</h3>
         <form method="POST" enctype="multipart/form-data">
+            <label style="color: #94a3b8; font-size: 12px; display:block; text-align:left; margin-left: 5%;">🎥 Video (MP4)</label>
             <input type="file" name="reel_video" accept="video/mp4" required>
+            
+            <label style="color: #94a3b8; font-size: 12px; display:block; text-align:left; margin-left: 5%; margin-top:10px;">🖼️ Cover Image (JPG/PNG - Optional)</label>
+            <input type="file" name="cover_image" accept="image/jpeg, image/png">
+            
             <textarea name="caption" rows="3" placeholder="Write caption & hashtags here..."></textarea>
             <button type="submit" class="btn">☁️ Upload to Vault</button>
         </form>
     </div>
 
-    <!-- Gallery Section -->
-    <h2 style="border-bottom: 2px solid #334155; padding-bottom: 10px;">Pending Templates ({{ reels|length }})</h2>
+    <!-- Gallery Header with Batch Post Button -->
+    <div class="gallery-header">
+        <h2>Pending Templates ({{ reels|length }})</h2>
+        {% if reels|length > 0 %}
+        <button class="batch-btn" onclick="document.getElementById('postModal').style.display='flex'">🚀 POST ALL REELS</button>
+        {% endif %}
+    </div>
     
     <div class="gallery">
         {% for reel in reels %}
         <div class="reel-card">
-            <video src="{{ reel.video_url }}" controls></video>
+            <!-- Agar cover hai toh poster attribut me dikhega -->
+            <video src="{{ reel.video_url }}" {% if reel.cover_url %}poster="{{ reel.cover_url }}"{% endif %} controls></video>
+            {% if reel.cover_url %}<span class="cover-badge">Cover Added</span>{% endif %}
             <p class="caption-text">{{ reel.caption }}</p>
-            <button class="post-btn">🚀 Post to Instagram</button>
         </div>
         {% else %}
         <p style="color: #94a3b8;">No reels in your vault yet. Upload some templates above!</p>
         {% endfor %}
+    </div>
+
+    <!-- VIP Batch Post Modal (Popup) -->
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('postModal').style.display='none'">&times;</span>
+            <h2 style="color: #eab308;">🚀 Broadcast Control</h2>
+            <p style="color: #cbd5e1; font-size: 14px;">You are about to publish all pending reels.</p>
+            
+            <form action="#" method="POST" style="margin-top: 20px;">
+                <label style="color: white; font-weight: bold; display:block; text-align:left; margin-bottom: 5px;">Select Target Accounts:</label>
+                <select name="account_mode" required>
+                    <option value="single">Single Account (Default)</option>
+                    <option value="all">ALL Connected Accounts (Blast Mode)</option>
+                </select>
+                
+                <button type="button" class="btn" style="width: 100%; margin-top: 20px; background: #22c55e; color: white;" onclick="alert('API Connection Required! Meta API setup aage aayega.')">⚡ PUBLISH NOW</button>
+            </form>
+        </div>
     </div>
 
 </body>
