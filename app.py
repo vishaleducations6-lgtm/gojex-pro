@@ -21,7 +21,7 @@ META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
 
-# Permanent IG ID
+# Permanent IG ID for backend blast
 IG_ID = "17841437629311591"
 
 # --- BACKGROUND PUBLISHING BOT ---
@@ -78,8 +78,9 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if not session.get('logged_in'): return redirect('/')
-    is_connected = session.get('meta_connected', False)
-    return render_template('dashboard.html', is_connected=is_connected)
+    # Get all connected accounts from session
+    accounts = session.get('ig_accounts', [])
+    return render_template('dashboard.html', accounts=accounts)
 
 # 👇 TERA ASLI INSTAGRAM CONNECT ROUTE
 @app.route('/meta_login')
@@ -88,7 +89,7 @@ def meta_login():
     auth_url = f"https://www.instagram.com/oauth/authorize?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=instagram_business_basic,instagram_business_content_publish"
     return redirect(auth_url)
 
-# 👇 INSTAGRAM SE WAPAS AANE WALA ROUTE
+# 👇 MULTI-ACCOUNT CALLBACK ROUTE (USERNAME FETCHER)
 @app.route('/meta_callback')
 def meta_callback():
     code = request.args.get('code')
@@ -106,10 +107,25 @@ def meta_callback():
     
     token_res = requests.post(token_url, data=payload).json()
     access_token = token_res.get('access_token')
+    user_id = token_res.get('user_id')
     
     if access_token:
-        session['meta_token'] = access_token
-        session['meta_connected'] = True
+        # Get Username via API
+        username = f"Insta_{str(user_id)[-4:]}"
+        try:
+            user_info = requests.get(f"https://graph.instagram.com/{user_id}?fields=username&access_token={access_token}").json()
+            if 'username' in user_info:
+                username = user_info['username']
+        except:
+            pass
+
+        # Save to accounts list
+        accounts = session.get('ig_accounts', [])
+        # Prevent duplicates
+        if not any(acc.get('id') == str(user_id) for acc in accounts):
+            accounts.append({'id': str(user_id), 'username': username, 'token': access_token})
+            session['ig_accounts'] = accounts
+            
         return redirect('/dashboard')
     else:
         return f"❌ Token Error: {token_res}"
@@ -153,10 +169,11 @@ def templates():
 def post_batch():
     if not session.get('logged_in'): return redirect('/')
     
-    token = session.get('meta_token')
-    if not token:
+    accounts = session.get('ig_accounts', [])
+    if not accounts:
         return "<h2 style='color:red;'>❌ Connect Instagram First!</h2><br><a href='/dashboard'>Back</a>"
         
+    token = accounts[0]['token']
     thread = threading.Thread(target=blast_reels_to_instagram, args=(token,))
     thread.start()
     
@@ -177,9 +194,7 @@ def manual():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
-    session.pop('meta_connected', None)
-    session.pop('meta_token', None)
+    session.clear()
     return redirect('/')
 
 if __name__ == '__main__':
