@@ -16,13 +16,14 @@ SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 🌐 Meta / Instagram App Config (Teri Original Keys)
+# 🌐 Meta / Instagram App Config
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
+IG_ID = "17841437629311591" # Permanent ID for backup
 
-# Permanent IG ID for backend blast
-IG_ID = "17841437629311591"
+# 👇 YAHAN HAI JADU: Server Memory (Is se tu kabhi logout nahi hoga!)
+GLOBAL_ACCOUNTS = []
 
 # --- BACKGROUND PUBLISHING BOT ---
 def blast_reels_to_instagram(access_token):
@@ -31,7 +32,6 @@ def blast_reels_to_instagram(access_token):
     
     for reel in res.data:
         try:
-            # 1. Create Container
             create_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media"
             payload = {
                 "media_type": "REELS", 
@@ -45,24 +45,19 @@ def blast_reels_to_instagram(access_token):
             create_res = requests.post(create_url, data=payload).json()
             creation_id = create_res.get("id")
             if not creation_id: 
-                print("❌ Container Error:", create_res)
                 continue
 
-            # 2. Wait for Processing
             time.sleep(30) 
 
-            # 3. Publish to Feed
             pub_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media_publish"
             pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
             
             if "id" in pub_res:
-                print(f"✅ SUCCESSFULLY POSTED! Post ID: {pub_res['id']}")
                 supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
-            else:
-                print("❌ Publish Error:", pub_res)
                 
         except Exception as e:
             print("Error processing reel:", e)
+
 
 # --- FLASK ROUTES ---
 @app.route('/', methods=['GET', 'POST'])
@@ -78,18 +73,15 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if not session.get('logged_in'): return redirect('/')
-    # Get all connected accounts from session
-    accounts = session.get('ig_accounts', [])
-    return render_template('dashboard.html', accounts=accounts)
+    # Ab data session cookie se nahi, direct memory se aayega
+    return render_template('dashboard.html', accounts=GLOBAL_ACCOUNTS)
 
-# 👇 TERA ASLI INSTAGRAM CONNECT ROUTE
 @app.route('/meta_login')
 def meta_login():
     if not session.get('logged_in'): return redirect('/')
     auth_url = f"https://www.instagram.com/oauth/authorize?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=instagram_business_basic,instagram_business_content_publish"
     return redirect(auth_url)
 
-# 👇 MULTI-ACCOUNT CALLBACK ROUTE (USERNAME FETCHER)
 @app.route('/meta_callback')
 def meta_callback():
     code = request.args.get('code')
@@ -110,21 +102,20 @@ def meta_callback():
     user_id = token_res.get('user_id')
     
     if access_token:
-        # Get Username via API
+        # 👇 USERNAME FIX: 100% working /me endpoint
         username = f"Insta_{str(user_id)[-4:]}"
         try:
-            user_info = requests.get(f"https://graph.instagram.com/{user_id}?fields=username&access_token={access_token}").json()
+            # Direct '/me' se username fetch karega ab
+            user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
             if 'username' in user_info:
                 username = user_info['username']
         except:
             pass
 
-        # Save to accounts list
-        accounts = session.get('ig_accounts', [])
-        # Prevent duplicates
-        if not any(acc.get('id') == str(user_id) for acc in accounts):
-            accounts.append({'id': str(user_id), 'username': username, 'token': access_token})
-            session['ig_accounts'] = accounts
+        # Memory me save karo (Taki browser logout limit hit na kare)
+        global GLOBAL_ACCOUNTS
+        if not any(acc.get('id') == str(user_id) for acc in GLOBAL_ACCOUNTS):
+            GLOBAL_ACCOUNTS.append({'id': str(user_id), 'username': username, 'token': access_token})
             
         return redirect('/dashboard')
     else:
@@ -169,11 +160,11 @@ def templates():
 def post_batch():
     if not session.get('logged_in'): return redirect('/')
     
-    accounts = session.get('ig_accounts', [])
-    if not accounts:
+    global GLOBAL_ACCOUNTS
+    if not GLOBAL_ACCOUNTS:
         return "<h2 style='color:red;'>❌ Connect Instagram First!</h2><br><a href='/dashboard'>Back</a>"
         
-    token = accounts[0]['token']
+    token = GLOBAL_ACCOUNTS[0]['token']
     thread = threading.Thread(target=blast_reels_to_instagram, args=(token,))
     thread.start()
     
@@ -181,7 +172,6 @@ def post_batch():
     <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
         <h1 style="color:#22c55e;">🚀 Blast Initiated!</h1>
         <p>GojexBot is working in the background. Your reels will appear on Instagram one by one.</p>
-        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel for Meta to process).</p>
         <br><br>
         <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
     </body>
@@ -195,6 +185,8 @@ def manual():
 @app.route('/logout')
 def logout():
     session.clear()
+    global GLOBAL_ACCOUNTS
+    GLOBAL_ACCOUNTS = [] # Logout par memory clear
     return redirect('/')
 
 if __name__ == '__main__':
