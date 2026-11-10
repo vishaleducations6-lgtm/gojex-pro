@@ -77,14 +77,16 @@
             <h2 style="color: #eab308;">🚀 Broadcast Control</h2>
             <p style="color: #cbd5e1; font-size: 14px;">You are about to publish all pending reels.</p>
             
-            <form action="#" method="POST" style="margin-top: 20px;">
+            <!-- 👇 Yahan action me /post_batch lagaya hai -->
+            <form action="/post_batch" method="POST" style="margin-top: 20px;">
                 <label style="color: white; font-weight: bold; display:block; text-align:left; margin-bottom: 5px;">Select Target Accounts:</label>
                 <select name="account_mode" required>
                     <option value="single">Single Account (Default)</option>
                     <option value="all">ALL Connected Accounts (Blast Mode)</option>
                 </select>
                 
-                <button type="button" class="btn" style="width: 100%; margin-top: 20px; background: #22c55e; color: white;" onclick="alert('API Connection Required! Meta API setup aage aayega.')">⚡ PUBLISH NOW</button>
+                <!-- 👇 Type submit kar diya hai -->
+                <button type="submit" class="btn" style="width: 100%; margin-top: 20px; background: #22c55e; color: white;">⚡ PUBLISH NOW</button>
             </form>
         </div>
     </div>
