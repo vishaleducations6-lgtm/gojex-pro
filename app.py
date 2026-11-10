@@ -28,7 +28,6 @@ def dashboard():
     if not session.get('logged_in'): return redirect('/')
     return render_template('dashboard.html')
 
-# 👇 Ye naya route add kiya hai taaki Manual button kaam kare
 @app.route('/manual')
 def manual():
     if not session.get('logged_in'): return redirect('/')
@@ -43,14 +42,21 @@ def templates():
         if file:
             filename = file.filename.replace(" ", "_")
             
-            supabase.storage.from_("reels").upload(
-                file=file.read(), 
-                path=filename, 
-                file_options={"content-type": "video/mp4"}
-            )
+            try:
+                # Video upload kar rahe hain
+                supabase.storage.from_("reels").upload(
+                    file=file.read(), 
+                    path=filename, 
+                    file_options={"content-type": "video/mp4"}
+                )
+                
+                # Upload hone par URL nikalna
+                public_url = supabase.storage.from_("reels").get_public_url(filename)
+                return f"<h2 style='color:green;'>✅ Upload Success!</h2><p>Video URL: <a href='{public_url}' target='_blank'>{public_url}</a></p><br><a href='/templates'>Upload Another</a> | <a href='/dashboard'>Dashboard</a>"
             
-            public_url = supabase.storage.from_("reels").get_public_url(filename)
-            return f"<h2 style='color:green;'>✅ Upload Success!</h2><p>Video URL: <a href='{public_url}'>{public_url}</a></p><br><a href='/templates'>Go Back</a>"
+            except Exception as e:
+                # Agar fail hua toh exact error dikhayega
+                return f"<h2 style='color:red;'>❌ Upload Failed!</h2><p>Error: {str(e)}</p><br><a href='/templates'>Go Back</a>"
 
     return render_template('templates_vault.html')
 
