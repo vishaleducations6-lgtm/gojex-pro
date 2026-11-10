@@ -37,32 +37,41 @@ def manual():
 def templates():
     if not session.get('logged_in'): return redirect('/')
     
-    # Jab naya template upload ho
     if request.method == 'POST':
         file = request.files.get('reel_video')
-        caption = request.form.get('caption', '') # User ka caption layega
+        cover = request.files.get('cover_image') # Cover image pakadna
+        caption = request.form.get('caption', '')
         
         if file:
             filename = file.filename.replace(" ", "_")
             try:
-                # 1. Video upload to Storage
+                # 1. Video upload
                 supabase.storage.from_("reels").upload(
                     file=file.read(), path=filename, file_options={"content-type": "video/mp4"}
                 )
                 public_url = supabase.storage.from_("reels").get_public_url(filename)
                 
-                # 2. Link & Caption Save to Database
+                # 2. Cover upload (agar daali hai toh)
+                cover_url = ""
+                if cover and cover.filename:
+                    cover_name = "cover_" + cover.filename.replace(" ", "_")
+                    supabase.storage.from_("reels").upload(
+                        file=cover.read(), path=cover_name, file_options={"content-type": cover.content_type}
+                    )
+                    cover_url = supabase.storage.from_("reels").get_public_url(cover_name)
+
+                # 3. Database me dono links save
                 supabase.table("reels_bank").insert({
                     "video_url": public_url,
+                    "cover_url": cover_url,
                     "caption": caption,
                     "status": "pending"
                 }).execute()
                 
-                return redirect('/templates') # Upload hote hi page refresh kar dega
+                return redirect('/templates')
             except Exception as e:
                 return f"<h2 style='color:red;'>❌ Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
-    # Database se saari 'pending' reels nikaal kar Gallery ko bhejna
     response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
     pending_reels = response.data
 
