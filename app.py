@@ -20,7 +20,7 @@ def login():
         if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
             session['logged_in'] = True
             return redirect('/dashboard')
-        return "❌ Wrong Details! Tum Zenitsu nahi ho.", 401
+        return "❌ Wrong Details!", 401
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -31,34 +31,42 @@ def dashboard():
 @app.route('/manual')
 def manual():
     if not session.get('logged_in'): return redirect('/')
-    return "<h1 style='color:white; background:black; padding:20px;'>📤 Manual Upload Page Jald Aa Raha Hai!</h1><br><a href='/dashboard' style='color:yellow;'>Back to Dashboard</a>"
+    return "<h1 style='color:white; background:black; padding:20px;'>📤 Manual Upload Jald Aa Raha Hai!</h1><br><a href='/dashboard' style='color:yellow;'>Back</a>"
 
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
     
+    # Jab naya template upload ho
     if request.method == 'POST':
         file = request.files.get('reel_video')
+        caption = request.form.get('caption', '') # User ka caption layega
+        
         if file:
             filename = file.filename.replace(" ", "_")
-            
             try:
-                # Video upload kar rahe hain
+                # 1. Video upload to Storage
                 supabase.storage.from_("reels").upload(
-                    file=file.read(), 
-                    path=filename, 
-                    file_options={"content-type": "video/mp4"}
+                    file=file.read(), path=filename, file_options={"content-type": "video/mp4"}
                 )
-                
-                # Upload hone par URL nikalna
                 public_url = supabase.storage.from_("reels").get_public_url(filename)
-                return f"<h2 style='color:green;'>✅ Upload Success!</h2><p>Video URL: <a href='{public_url}' target='_blank'>{public_url}</a></p><br><a href='/templates'>Upload Another</a> | <a href='/dashboard'>Dashboard</a>"
-            
+                
+                # 2. Link & Caption Save to Database
+                supabase.table("reels_bank").insert({
+                    "video_url": public_url,
+                    "caption": caption,
+                    "status": "pending"
+                }).execute()
+                
+                return redirect('/templates') # Upload hote hi page refresh kar dega
             except Exception as e:
-                # Agar fail hua toh exact error dikhayega
-                return f"<h2 style='color:red;'>❌ Upload Failed!</h2><p>Error: {str(e)}</p><br><a href='/templates'>Go Back</a>"
+                return f"<h2 style='color:red;'>❌ Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
-    return render_template('templates_vault.html')
+    # Database se saari 'pending' reels nikaal kar Gallery ko bhejna
+    response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
+    pending_reels = response.data
+
+    return render_template('templates_vault.html', reels=pending_reels)
 
 @app.route('/logout')
 def logout():
