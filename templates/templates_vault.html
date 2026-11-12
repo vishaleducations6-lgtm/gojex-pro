@@ -2,52 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Gojex PRO | Link Vault</title>
+    <title>Gojex PRO | Link & Cover Vault</title>
     <style>
         body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
-        .vault-container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
-        input[type="text"], input[type="url"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 16px; }
+        .vault-container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .box { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
+        
+        input[type="text"], input[type="url"], input[type="file"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 14px; }
         .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
         .btn:hover { background: #ca8a04; }
         .btn-blast { background: #22c55e; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-        .btn-blast:hover { background: #16a34a; }
         
-        .reel-card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #334155; text-align: left; display: flex; align-items: flex-start; gap: 15px; }
-        .reel-card input[type="checkbox"] { width: 25px; height: 25px; cursor: pointer; margin-top: 10px; }
-        .reel-info { flex: 1; overflow: hidden; }
-        .acc-card { background: #334155; padding: 10px 15px; border-radius: 6px; margin: 10px 0; display: flex; align-items: center; gap: 10px; text-align: left;}
-        .acc-card input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .list-card { background: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; align-items: flex-start; gap: 15px; text-align: left; }
+        .list-card input[type="checkbox"], .list-card input[type="radio"] { width: 20px; height: 20px; cursor: pointer; margin-top: 5px; }
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
-        .modal-content { background: #1e293b; max-width: 400px; margin: 10% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 80vh; overflow-y: auto;}
+        .modal-content { background: #1e293b; max-width: 500px; margin: 5% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 85vh; overflow-y: auto; text-align: left;}
         .close-btn { position: absolute; top: 10px; right: 15px; color: white; font-size: 24px; cursor: pointer; }
         .select-all-btn { background: #3b82f6; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <h1 style="color: #eab308;">🔗 Link Templates Vault</h1>
-    <p style="color: #94a3b8;">Save your video URLs and Blast them anytime.</p>
+    <h1 style="color: #eab308;">🔗 Link & Cover Vault</h1>
+    <p style="color: #94a3b8;">Manage your Videos, Covers, and execute Blast Mode.</p>
 
     <a href="/dashboard" style="color: #3b82f6; text-decoration: none; display: block; margin-bottom: 20px;">🔙 Back to Dashboard</a>
 
     <div class="vault-container">
-        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">📥 Save New Reel Link</h2>
         
-        <!-- Add Link Form (No file upload) -->
-        <form action="/templates" method="POST">
-            <label style="display: block; text-align: left; font-weight: bold; color: #cbd5e1;">Video URL (Catbox/Mp4 Link):</label>
-            <input type="url" name="video_url" required placeholder="https://files.catbox.moe/example.mp4">
-            
-            <label style="display: block; text-align: left; font-weight: bold; margin-top: 10px; color: #cbd5e1;">Caption:</label>
-            <textarea name="caption" rows="3" placeholder="Write your VIP caption here..."></textarea>
-            
-            <button type="submit" class="btn">💾 Save to Vault</button>
-        </form>
+        <div class="grid-container">
+            <!-- REEL LINK UPLOAD BOX -->
+            <div class="box">
+                <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0;">📥 Save Reel URL</h3>
+                <form action="/templates" method="POST">
+                    <input type="hidden" name="action" value="add_link">
+                    <input type="url" name="video_url" required placeholder="https://files.catbox.moe/example.mp4">
+                    <textarea name="caption" rows="2" placeholder="Write caption here..."></textarea>
+                    <button type="submit" class="btn">💾 Save Reel Link</button>
+                </form>
+            </div>
+
+            <!-- COVER UPLOAD BOX -->
+            <div class="box">
+                <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0;">🖼️ Upload Cover Image</h3>
+                <form action="/templates" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="add_cover">
+                    <input type="text" name="cover_name" required placeholder="Cover Name (e.g. Sukuna Theme 1)">
+                    <input type="file" name="cover_image" accept="image/*" required>
+                    <button type="submit" class="btn" style="background: #3b82f6; color: white;">☁️ Upload Cover</button>
+                </form>
+            </div>
+        </div>
 
         <hr style="border: 0; border-top: 1px solid #334155; margin: 40px 0;">
 
-        <!-- BATCH POSTING FORM -->
+        <!-- BATCH POSTING MAIN FORM -->
         <form action="/post_batch" method="POST">
             
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -57,40 +68,54 @@
             
             {% if reels %}
                 {% for reel in reels %}
-                    <div class="reel-card">
+                    <div class="list-card">
                         <input type="checkbox" name="selected_reels" class="reel-checkbox" value="{{ reel.id }}">
-                        <div class="reel-info">
-                            <p style="margin: 0; color: #3b82f6; font-size: 12px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
-                            <p style="margin-top: 8px; color: #e2e8f0; font-size: 14px;"><strong>Caption:</strong> {{ reel.caption }}</p>
+                        <div>
+                            <p style="margin: 0; color: #3b82f6; font-size: 13px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
+                            <p style="margin-top: 5px; color: #e2e8f0; font-size: 13px;">{{ reel.caption }}</p>
                         </div>
                     </div>
                 {% endfor %}
                 
-                <button type="button" class="btn-blast" onclick="openModal()">
-                    🚀 CONTINUE TO SELECT ACCOUNTS
-                </button>
+                <button type="button" class="btn-blast" onclick="openModal()">🚀 PROCEED TO BLAST</button>
             {% else %}
-                <p style="color: #94a3b8;">No reels saved yet. Add a link above!</p>
+                <p style="color: #94a3b8;">No reels saved yet.</p>
             {% endif %}
 
-            <!-- VIP Account Selection Modal -->
+            <!-- FINAL BLAST SETTINGS MODAL -->
             <div id="postModal" class="modal">
                 <div class="modal-content">
                     <span class="close-btn" onclick="closeModal()">×</span>
-                    <h2 style="color: #22c55e;">🎯 Select Target Accounts</h2>
                     
-                    <button type="button" class="select-all-btn" onclick="selectAllAccounts()">☑️ Select All Accounts</button>
+                    <h2 style="color: #eab308; margin-top: 0;">⚙️ Blast Configuration</h2>
+                    
+                    <!-- 1. COVER SELECTION -->
+                    <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">1. Select Global Cover (Optional)</h3>
+                    <div style="max-height: 150px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="selected_cover_url" value="" checked> 🚫 No Cover (Default)
+                        </label>
+                        {% for cover in covers %}
+                            <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                                <input type="radio" name="selected_cover_url" value="{{ cover.cover_url }}"> 
+                                🖼️ {{ cover.cover_name }}
+                            </label>
+                        {% endfor %}
+                    </div>
 
-                    <div style="margin-top: 15px;">
+                    <!-- 2. ACCOUNT SELECTION -->
+                    <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 25px;">2. Select Target Accounts</h3>
+                    <button type="button" class="select-all-btn" onclick="selectAllAccounts()">☑️ Select All Accounts</button>
+                    <div style="max-height: 150px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px; margin-top: 10px;">
                         {% for acc in accounts %}
-                            <div class="acc-card">
+                            <label style="display: block; margin-bottom: 10px; cursor: pointer;">
                                 <input type="checkbox" name="selected_accounts" class="acc-checkbox" value="{{ acc.id }}">
                                 <span style="font-weight: bold;">@{{ acc.username }}</span>
-                            </div>
+                            </label>
                         {% endfor %}
                     </div>
                     
-                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ POST TO SELECTED ACCOUNTS</button>
+                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ CONFIRM & INITIATE BLAST</button>
                 </div>
             </div>
 
