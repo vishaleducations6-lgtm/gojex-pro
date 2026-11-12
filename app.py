@@ -3,10 +3,14 @@ import os
 import requests
 import time
 import threading
+from datetime import timedelta
 from supabase import create_client
 
 app = Flask(__name__)
-app.secret_key = "gojex_super_secret_key_pro"
+# 👇 PRO FIX: Nayi Secret Key aur Cookie Name taaki purana kachra saaf ho jaye
+app.secret_key = "gojex_ultimate_secret_v3"
+app.config['SESSION_COOKIE_NAME'] = 'gojex_vip_session'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) # 30 Din tak no logout!
 
 ADMIN_USER = "zenitsu"
 ADMIN_PASS = "godcreation"
@@ -21,13 +25,12 @@ META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
 
-# --- BACKGROUND PUBLISHING BOT (MULTI-ACCOUNT BLAST) ---
+# --- BACKGROUND PUBLISHING BOT (MULTI-ACCOUNT) ---
 def blast_reels_to_instagram(accounts_list):
     print(f"🔥 Blast Mode Initiated for {len(accounts_list)} accounts...")
     res = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at").execute()
     
     for reel in res.data:
-        # Har account par ek-ek karke blast karega
         for acc in accounts_list:
             ig_id = acc['id']
             access_token = acc['token']
@@ -53,12 +56,12 @@ def blast_reels_to_instagram(accounts_list):
 
                 # 3. Publish to Feed
                 pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
-                pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
+                requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
                 
             except Exception as e:
-                print(f"Error processing reel for {acc['username']}:", e)
+                print(f"Error for {acc.get('username')}:", e)
                 
-        # Sab accounts par post hone ke baad reel status update
+        # Status Update in Vault
         supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
 
 
@@ -68,6 +71,7 @@ def login():
     if session.get('logged_in'): return redirect('/dashboard')
     if request.method == 'POST':
         if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
+            session.permanent = True # 👇 PRO FIX: Session ko hamesha ke liye lock kar diya
             session['logged_in'] = True
             return redirect('/dashboard')
         return "❌ Wrong Details!", 401
@@ -76,9 +80,11 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if not session.get('logged_in'): return redirect('/')
-    # Ab account sidha Supabase database se aayega, refresh par gayab nahi hoga!
-    res = supabase.table("connected_accounts").select("*").execute()
-    accounts = res.data
+    try:
+        res = supabase.table("connected_accounts").select("*").execute()
+        accounts = res.data
+    except:
+        accounts = []
     return render_template('dashboard.html', accounts=accounts)
 
 @app.route('/meta_login')
@@ -107,7 +113,7 @@ def meta_callback():
     user_id = token_res.get('user_id')
     
     if access_token:
-        # Fetch actual username
+        # Username API Call
         username = f"Insta_{str(user_id)[-4:]}"
         try:
             user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
@@ -116,12 +122,15 @@ def meta_callback():
         except:
             pass
 
-        # Seedha database me lock kar rahe hain (Upsert)
-        supabase.table("connected_accounts").upsert({
-            "id": str(user_id),
-            "username": username,
-            "token": access_token
-        }).execute()
+        # Save directly to Database
+        try:
+            supabase.table("connected_accounts").upsert({
+                "id": str(user_id),
+                "username": username,
+                "token": access_token
+            }).execute()
+        except Exception as e:
+            return f"❌ Database Save Error: {e}<br><a href='/dashboard'>Back</a>"
             
         return redirect('/dashboard')
     else:
@@ -154,25 +163,33 @@ def templates():
                     "caption": caption,
                     "status": "pending"
                 }).execute()
-                
                 return redirect('/templates')
             except Exception as e:
-                return f"<h2 style='color:red;'>❌ Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
+                return f"<h2 style='color:red;'>❌ Upload Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
-    response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
-    return render_template('templates_vault.html', reels=response.data)
+    # 👇 PRO FIX: Vault Load ko Crash-Proof bana diya
+    try:
+        response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
+        reels_data = response.data
+    except Exception as e:
+        print("Vault Load Error:", e)
+        reels_data = []
+
+    return render_template('templates_vault.html', reels=reels_data)
 
 @app.route('/post_batch', methods=['POST'])
 def post_batch():
     if not session.get('logged_in'): return redirect('/')
     
-    res = supabase.table("connected_accounts").select("*").execute()
-    accounts = res.data
+    try:
+        res = supabase.table("connected_accounts").select("*").execute()
+        accounts = res.data
+    except:
+        accounts = []
     
     if not accounts:
         return "<h2 style='color:red;'>❌ Connect Instagram First!</h2><br><a href='/dashboard'>Back</a>"
         
-    # Ab blast mode saare connected accounts ko ek sath bhejega!
     thread = threading.Thread(target=blast_reels_to_instagram, args=(accounts,))
     thread.start()
     
@@ -192,7 +209,7 @@ def manual():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
+    session.clear()
     return redirect('/')
 
 if __name__ == '__main__':
