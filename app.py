@@ -20,43 +20,46 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
-IG_ID = "17841437629311591" # Permanent ID for backup
 
-# 👇 YAHAN HAI JADU: Server Memory (Is se tu kabhi logout nahi hoga!)
-GLOBAL_ACCOUNTS = []
-
-# --- BACKGROUND PUBLISHING BOT ---
-def blast_reels_to_instagram(access_token):
-    print("🔥 Blast Mode Initiated...")
+# --- BACKGROUND PUBLISHING BOT (MULTI-ACCOUNT BLAST) ---
+def blast_reels_to_instagram(accounts_list):
+    print(f"🔥 Blast Mode Initiated for {len(accounts_list)} accounts...")
     res = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at").execute()
     
     for reel in res.data:
-        try:
-            create_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media"
-            payload = {
-                "media_type": "REELS", 
-                "video_url": reel['video_url'], 
-                "caption": reel['caption'], 
-                "access_token": access_token
-            }
-            if reel.get('cover_url'): 
-                payload['cover_url'] = reel['cover_url']
-            
-            create_res = requests.post(create_url, data=payload).json()
-            creation_id = create_res.get("id")
-            if not creation_id: 
-                continue
-
-            time.sleep(30) 
-
-            pub_url = f"https://graph.facebook.com/v18.0/{IG_ID}/media_publish"
-            pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
-            
-            if "id" in pub_res:
-                supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
+        # Har account par ek-ek karke blast karega
+        for acc in accounts_list:
+            ig_id = acc['id']
+            access_token = acc['token']
+            try:
+                # 1. Create Container
+                create_url = f"https://graph.facebook.com/v18.0/{ig_id}/media"
+                payload = {
+                    "media_type": "REELS", 
+                    "video_url": reel['video_url'], 
+                    "caption": reel['caption'], 
+                    "access_token": access_token
+                }
+                if reel.get('cover_url'): 
+                    payload['cover_url'] = reel['cover_url']
                 
-        except Exception as e:
-            print("Error processing reel:", e)
+                create_res = requests.post(create_url, data=payload).json()
+                creation_id = create_res.get("id")
+                if not creation_id: 
+                    continue
+
+                # 2. Wait for Processing
+                time.sleep(30) 
+
+                # 3. Publish to Feed
+                pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
+                pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
+                
+            except Exception as e:
+                print(f"Error processing reel for {acc['username']}:", e)
+                
+        # Sab accounts par post hone ke baad reel status update
+        supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
 
 
 # --- FLASK ROUTES ---
@@ -73,8 +76,10 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if not session.get('logged_in'): return redirect('/')
-    # Ab data session cookie se nahi, direct memory se aayega
-    return render_template('dashboard.html', accounts=GLOBAL_ACCOUNTS)
+    # Ab account sidha Supabase database se aayega, refresh par gayab nahi hoga!
+    res = supabase.table("connected_accounts").select("*").execute()
+    accounts = res.data
+    return render_template('dashboard.html', accounts=accounts)
 
 @app.route('/meta_login')
 def meta_login():
@@ -102,20 +107,21 @@ def meta_callback():
     user_id = token_res.get('user_id')
     
     if access_token:
-        # 👇 USERNAME FIX: 100% working /me endpoint
+        # Fetch actual username
         username = f"Insta_{str(user_id)[-4:]}"
         try:
-            # Direct '/me' se username fetch karega ab
             user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
             if 'username' in user_info:
                 username = user_info['username']
         except:
             pass
 
-        # Memory me save karo (Taki browser logout limit hit na kare)
-        global GLOBAL_ACCOUNTS
-        if not any(acc.get('id') == str(user_id) for acc in GLOBAL_ACCOUNTS):
-            GLOBAL_ACCOUNTS.append({'id': str(user_id), 'username': username, 'token': access_token})
+        # Seedha database me lock kar rahe hain (Upsert)
+        supabase.table("connected_accounts").upsert({
+            "id": str(user_id),
+            "username": username,
+            "token": access_token
+        }).execute()
             
         return redirect('/dashboard')
     else:
@@ -160,18 +166,20 @@ def templates():
 def post_batch():
     if not session.get('logged_in'): return redirect('/')
     
-    global GLOBAL_ACCOUNTS
-    if not GLOBAL_ACCOUNTS:
+    res = supabase.table("connected_accounts").select("*").execute()
+    accounts = res.data
+    
+    if not accounts:
         return "<h2 style='color:red;'>❌ Connect Instagram First!</h2><br><a href='/dashboard'>Back</a>"
         
-    token = GLOBAL_ACCOUNTS[0]['token']
-    thread = threading.Thread(target=blast_reels_to_instagram, args=(token,))
+    # Ab blast mode saare connected accounts ko ek sath bhejega!
+    thread = threading.Thread(target=blast_reels_to_instagram, args=(accounts,))
     thread.start()
     
     return """
     <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
-        <h1 style="color:#22c55e;">🚀 Blast Initiated!</h1>
-        <p>GojexBot is working in the background. Your reels will appear on Instagram one by one.</p>
+        <h1 style="color:#22c55e;">🚀 Super Blast Initiated!</h1>
+        <p>GojexBot is working in the background and posting to ALL connected accounts.</p>
         <br><br>
         <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
     </body>
@@ -184,9 +192,7 @@ def manual():
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    global GLOBAL_ACCOUNTS
-    GLOBAL_ACCOUNTS = [] # Logout par memory clear
+    session.pop('logged_in', None)
     return redirect('/')
 
 if __name__ == '__main__':
