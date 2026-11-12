@@ -7,10 +7,10 @@ from datetime import timedelta
 from supabase import create_client
 
 app = Flask(__name__)
-# 👇 PRO FIX: Nayi Secret Key aur Cookie Name taaki purana kachra saaf ho jaye
+# Session config
 app.secret_key = "gojex_ultimate_secret_v3"
 app.config['SESSION_COOKIE_NAME'] = 'gojex_vip_session'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) # 30 Din tak no logout!
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) 
 
 ADMIN_USER = "zenitsu"
 ADMIN_PASS = "godcreation"
@@ -20,12 +20,12 @@ SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 🌐 Meta / Instagram App Config
+# 🌐 Meta App Config
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
 
-# --- BACKGROUND PUBLISHING BOT (MULTI-ACCOUNT) ---
+# --- BACKGROUND PUBLISHING BOT ---
 def blast_reels_to_instagram(accounts_list):
     print(f"🔥 Blast Mode Initiated for {len(accounts_list)} accounts...")
     res = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at").execute()
@@ -61,9 +61,8 @@ def blast_reels_to_instagram(accounts_list):
             except Exception as e:
                 print(f"Error for {acc.get('username')}:", e)
                 
-        # Status Update in Vault
+        # Update Status to "published" so it disappears from Pending Vault (Prevents double posting)
         supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
-
 
 # --- FLASK ROUTES ---
 @app.route('/', methods=['GET', 'POST'])
@@ -71,7 +70,7 @@ def login():
     if session.get('logged_in'): return redirect('/dashboard')
     if request.method == 'POST':
         if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
-            session.permanent = True # 👇 PRO FIX: Session ko hamesha ke liye lock kar diya
+            session.permanent = True 
             session['logged_in'] = True
             return redirect('/dashboard')
         return "❌ Wrong Details!", 401
@@ -113,7 +112,6 @@ def meta_callback():
     user_id = token_res.get('user_id')
     
     if access_token:
-        # Username API Call
         username = f"Insta_{str(user_id)[-4:]}"
         try:
             user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
@@ -122,7 +120,6 @@ def meta_callback():
         except:
             pass
 
-        # Save directly to Database
         try:
             supabase.table("connected_accounts").upsert({
                 "id": str(user_id),
@@ -146,14 +143,17 @@ def templates():
         caption = request.form.get('caption', '')
         
         if file:
-            filename = file.filename.replace(" ", "_")
+            # 👇 PRO FIX: Har file ko ek Unique ID dena taaki 409 Duplicate Error na aaye
+            unique_id = str(int(time.time()))
+            filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
+            
             try:
                 supabase.storage.from_("reels").upload(file=file.read(), path=filename, file_options={"content-type": "video/mp4"})
                 public_url = supabase.storage.from_("reels").get_public_url(filename)
                 
                 cover_url = ""
                 if cover and cover.filename:
-                    cover_name = "cover_" + cover.filename.replace(" ", "_")
+                    cover_name = f"cover_{unique_id}_{cover.filename.replace(' ', '_')}"
                     supabase.storage.from_("reels").upload(file=cover.read(), path=cover_name, file_options={"content-type": cover.content_type})
                     cover_url = supabase.storage.from_("reels").get_public_url(cover_name)
 
@@ -167,7 +167,6 @@ def templates():
             except Exception as e:
                 return f"<h2 style='color:red;'>❌ Upload Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
-    # 👇 PRO FIX: Vault Load ko Crash-Proof bana diya
     try:
         response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
         reels_data = response.data
@@ -197,6 +196,7 @@ def post_batch():
     <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
         <h1 style="color:#22c55e;">🚀 Super Blast Initiated!</h1>
         <p>GojexBot is working in the background and posting to ALL connected accounts.</p>
+        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel. Check your Instagram shortly!)</p>
         <br><br>
         <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
     </body>
