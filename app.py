@@ -51,7 +51,7 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
             access_token = acc['token']
             username = acc.get('username', 'Unknown')
             
-            BLAST_STATUS['logs'].insert(0, f"⏳ Uploading to @{username} (Link: {reel['video_url'][:30]}...)")
+            BLAST_STATUS['logs'].insert(0, f"⏳ Uploading Video Data to @{username}...")
             
             try:
                 create_url = f"https://graph.instagram.com/v21.0/{ig_id}/media"
@@ -62,28 +62,49 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
                     "access_token": access_token
                 }
                 
-                # Agar user ne cover select kiya hai, toh usko payload me jod do
                 if cover_url:
                     payload['cover_url'] = cover_url
-                    BLAST_STATUS['logs'].insert(0, f"🖼️ Cover Image attached for @{username}")
+                    BLAST_STATUS['logs'].insert(0, f"🖼️ Cover Image attached!")
                 
                 create_res = requests.post(create_url, data=payload).json()
                 creation_id = create_res.get("id")
                 
                 if not creation_id: 
                     error_msg = create_res.get('error', {}).get('message', str(create_res))
-                    BLAST_STATUS['logs'].insert(0, f"❌ ERROR on @{username}: {error_msg}")
+                    BLAST_STATUS['logs'].insert(0, f"❌ CONTAINER ERROR on @{username}: {error_msg}")
                     BLAST_STATUS['completed_tasks'] += 1
                     continue
 
-                BLAST_STATUS['logs'].insert(0, f"⌛ Processing Video for @{username} (Waiting 30 seconds...)")
-                time.sleep(30) 
+                # 👇 SMART META SCANNER (Checks status instead of blind sleep)
+                BLAST_STATUS['logs'].insert(0, f"⌛ Meta is scanning the video. Please wait...")
+                
+                is_ready = False
+                for step in range(15): # Max 75 seconds checking
+                    time.sleep(5)
+                    status_url = f"https://graph.instagram.com/v21.0/{creation_id}?fields=status_code,status&access_token={access_token}"
+                    status_res = requests.get(status_url).json()
+                    
+                    status_code = status_res.get('status_code')
+                    if status_code == 'FINISHED':
+                        is_ready = True
+                        BLAST_STATUS['logs'].insert(0, f"✅ Processing Complete! Publishing now...")
+                        break
+                    elif status_code == 'ERROR':
+                        err_msg = status_res.get('status', 'Meta rejected the video/cover (Check if cover is JPG)')
+                        BLAST_STATUS['logs'].insert(0, f"❌ META REJECTION on @{username}: {err_msg}")
+                        break
+                
+                if not is_ready:
+                    BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ABORTED: Video failed to process in Meta's system.")
+                    BLAST_STATUS['completed_tasks'] += 1
+                    continue
 
+                # 3. Publish to Feed
                 pub_url = f"https://graph.instagram.com/v21.0/{ig_id}/media_publish"
                 pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
                 
                 if "id" in pub_res:
-                    BLAST_STATUS['logs'].insert(0, f"✅ SUCCESS: Reel Live on @{username}! (ID: {pub_res['id']})")
+                    BLAST_STATUS['logs'].insert(0, f"✅ SUCCESS: Reel Live on @{username}! (Post ID: {pub_res['id']})")
                 else:
                     error_msg = pub_res.get('error', {}).get('message', str(pub_res))
                     BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ERROR on @{username}: {error_msg}")
@@ -198,7 +219,7 @@ def post_batch():
     
     selected_reels = request.form.getlist('selected_reels')
     selected_accounts = request.form.getlist('selected_accounts')
-    selected_cover_url = request.form.get('selected_cover_url') # Yahan se cover aayega!
+    selected_cover_url = request.form.get('selected_cover_url') 
     
     if not selected_reels or not selected_accounts:
         return "<h2 style='color:red;'>❌ Kam se kam 1 Reel aur 1 Account select karo!</h2><br><a href='/templates'>Back</a>"
