@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gojex PRO | Live Terminal</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
+        .monitor-box { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        .progress-container { width: 100%; background-color: #334155; border-radius: 6px; margin: 20px 0; overflow: hidden; }
+        .progress-bar { height: 25px; background-color: #22c55e; width: 0%; text-align: center; line-height: 25px; color: white; font-weight: bold; transition: width 0.5s ease; }
+        .terminal { background: #000; color: #22c55e; font-family: 'Courier New', Courier, monospace; text-align: left; padding: 15px; border-radius: 8px; height: 400px; overflow-y: auto; font-size: 14px; border: 1px solid #334155; }
+        .terminal p { margin: 5px 0; border-bottom: 1px dashed #333; padding-bottom: 5px; }
+        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1 style="color: #22c55e;">🚀 Blast Live Monitor</h1>
+    
+    <div class="monitor-box">
+        <h3 id="status-text">⏳ Initializing Engine...</h3>
+        
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar">0%</div>
+        </div>
+
+        <div class="terminal" id="terminal-box">
+            <!-- Logs automatically idhar aayenge -->
+        </div>
+
+        <a href="/templates" class="btn">🔙 Back to Vault</a>
+    </div>
+
+    <script>
+        // Har 2 second me backend se naya data laayega
+        setInterval(function() {
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                
+                // Progress Bar Update
+                let percent = 0;
+                if (data.total_tasks > 0) {
+                    percent = Math.round((data.completed_tasks / data.total_tasks) * 100);
+                }
+                document.getElementById('progress-bar').style.width = percent + '%';
+                document.getElementById('progress-bar').innerText = percent + '%';
+
+                // Status Header Update
+                if (data.is_running) {
+                    document.getElementById('status-text').innerText = `⚡ Publishing in Progress (${data.completed_tasks}/${data.total_tasks})`;
+                } else if (data.total_tasks > 0 && data.completed_tasks === data.total_tasks) {
+                    document.getElementById('status-text').innerText = "🏁 All Tasks Completed!";
+                    document.getElementById('progress-bar').style.backgroundColor = "#eab308";
+                }
+
+                // Terminal Logs Update
+                let terminalHtml = '';
+                data.logs.forEach(log => {
+                    // Make errors red for easy reading
+                    let color = log.includes("❌") ? "#ef4444" : "#22c55e";
+                    if(log.includes("✅")) color = "#eab308";
+                    
+                    terminalHtml += `<p style="color: ${color}">${log}</p>`;
+                });
+                document.getElementById('terminal-box').innerHTML = terminalHtml;
+            });
+        }, 2000); // 2 seconds refresh
+    </script>
+</body>
+</html>
