@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, jsonify
 import os
 import requests
 import time
@@ -21,17 +21,27 @@ SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 🌐 Meta App Config
-IG_ID = "17841437629311591"
+META_APP_ID = "1412413731007169"
+META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
+REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
+
+# 👇 NAYA: Live Status Tracker (Memory Server)
+BLAST_STATUS = {
+    'is_running': False,
+    'total_tasks': 0,
+    'completed_tasks': 0,
+    'logs': []
+}
 
 # --- BACKGROUND PUBLISHING BOT ---
 def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
-    print(f"🔥 Blast Mode Initiated...")
+    global BLAST_STATUS
+    BLAST_STATUS['is_running'] = True
+    BLAST_STATUS['logs'].insert(0, "🔥 Blast Mode Engine Started...")
     
-    # Database se saari reels aur accounts nikalo
     all_reels = supabase.table("reels_bank").select("*").execute().data
     all_accs = supabase.table("connected_accounts").select("*").execute().data
     
-    # Sirf jo Tick kiye hain, unko filter karo
     reels_to_post = [r for r in all_reels if str(r['id']) in selected_reel_ids]
     accounts_to_post = [a for a in all_accs if str(a['id']) in selected_accounts_ids]
     
@@ -39,6 +49,10 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
         for acc in accounts_to_post:
             ig_id = acc['id']
             access_token = acc['token']
+            username = acc.get('username', 'Unknown')
+            
+            BLAST_STATUS['logs'].insert(0, f"⏳ Uploading to @{username} (Link: {reel['video_url'][:30]}...)")
+            
             try:
                 # 1. Create Container
                 create_url = f"https://graph.facebook.com/v18.0/{ig_id}/media"
@@ -51,22 +65,34 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
                 
                 create_res = requests.post(create_url, data=payload).json()
                 creation_id = create_res.get("id")
+                
                 if not creation_id: 
-                    print(f"❌ Container Error for {acc.get('username')}:", create_res)
+                    # 🚨 ERROR CATCHER
+                    error_msg = create_res.get('error', {}).get('message', str(create_res))
+                    BLAST_STATUS['logs'].insert(0, f"❌ ERROR on @{username}: {error_msg}")
+                    BLAST_STATUS['completed_tasks'] += 1
                     continue
 
-                # 2. Wait for Processing (Meta needs time)
+                BLAST_STATUS['logs'].insert(0, f"⌛ Processing Video for @{username} (Waiting 30 seconds...)")
                 time.sleep(30) 
 
                 # 3. Publish to Feed
                 pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
                 pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
-                print(f"✅ Posted Reel ID {reel['id']} on @{acc.get('username')}")
                 
+                if "id" in pub_res:
+                    BLAST_STATUS['logs'].insert(0, f"✅ SUCCESS: Reel Live on @{username}! (ID: {pub_res['id']})")
+                else:
+                    error_msg = pub_res.get('error', {}).get('message', str(pub_res))
+                    BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ERROR on @{username}: {error_msg}")
+                    
             except Exception as e:
-                print(f"Error for @{acc.get('username')}:", e)
-                
-        # ⚠️ HUM STATUS UPDATE NAHI KAR RAHE. REEL HAMESHA VAULT ME RAHEGI!
+                BLAST_STATUS['logs'].insert(0, f"❌ SYSTEM ERROR on @{username}: {str(e)}")
+            
+            BLAST_STATUS['completed_tasks'] += 1
+            
+    BLAST_STATUS['is_running'] = False
+    BLAST_STATUS['logs'].insert(0, "🏁 BLAST MODE COMPLETED FULLY!")
 
 # --- FLASK ROUTES ---
 @app.route('/', methods=['GET', 'POST'])
@@ -89,32 +115,55 @@ def dashboard():
         accounts = []
     return render_template('dashboard.html', accounts=accounts)
 
+@app.route('/meta_login')
+def meta_login():
+    if not session.get('logged_in'): return redirect('/')
+    auth_url = f"https://www.instagram.com/oauth/authorize?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=instagram_business_basic,instagram_business_content_publish"
+    return redirect(auth_url)
+
+@app.route('/meta_callback')
+def meta_callback():
+    code = request.args.get('code')
+    if not code: return "❌ Login Cancelled by User.<br><a href='/dashboard'>Back</a>"
+    
+    token_url = "https://api.instagram.com/oauth/access_token"
+    payload = {"client_id": META_APP_ID, "client_secret": META_APP_SECRET, "grant_type": "authorization_code", "redirect_uri": REDIRECT_URI, "code": code}
+    
+    token_res = requests.post(token_url, data=payload).json()
+    access_token = token_res.get('access_token')
+    user_id = token_res.get('user_id')
+    
+    if access_token:
+        username = f"Insta_{str(user_id)[-4:]}"
+        try:
+            user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
+            if 'username' in user_info: username = user_info['username']
+        except: pass
+
+        try:
+            supabase.table("connected_accounts").upsert({"id": str(user_id), "username": username, "token": access_token}).execute()
+        except Exception as e:
+            return f"❌ Database Save Error: {e}<br><a href='/dashboard'>Back</a>"
+            
+        return redirect('/dashboard')
+    else: return f"❌ Token Error: {token_res}"
+
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
-    
     if request.method == 'POST':
-        # Ab koi file nahi, seedha URL aayega!
         video_url = request.form.get('video_url')
         caption = request.form.get('caption', '')
-        
         if video_url:
             try:
-                supabase.table("reels_bank").insert({
-                    "video_url": video_url,
-                    "caption": caption,
-                    "status": "active" # Pending ki jagah active kardiya
-                }).execute()
+                supabase.table("reels_bank").insert({"video_url": video_url, "caption": caption, "status": "active"}).execute()
                 return redirect('/templates')
-            except Exception as e:
-                return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
+            except Exception as e: return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
     try:
         reels_data = supabase.table("reels_bank").select("*").order("created_at", desc=True).execute().data
         accounts = supabase.table("connected_accounts").select("*").execute().data
-    except Exception as e:
-        reels_data = []
-        accounts = []
+    except: reels_data, accounts = [], []
 
     return render_template('templates_vault.html', reels=reels_data, accounts=accounts)
 
@@ -125,25 +174,31 @@ def post_batch():
     selected_reels = request.form.getlist('selected_reels')
     selected_accounts = request.form.getlist('selected_accounts')
     
-    if not selected_reels:
-        return "<h2 style='color:red;'>❌ Kam se kam 1 Reel toh select karo!</h2><br><a href='/templates'>Back</a>"
-    
-    if not selected_accounts:
-        return "<h2 style='color:red;'>❌ Kam se kam 1 Account toh select karo!</h2><br><a href='/templates'>Back</a>"
+    if not selected_reels or not selected_accounts:
+        return "<h2 style='color:red;'>❌ Kam se kam 1 Reel aur 1 Account select karo!</h2><br><a href='/templates'>Back</a>"
         
-    # Start blast in background with selected IDs
+    global BLAST_STATUS
+    BLAST_STATUS['total_tasks'] = len(selected_reels) * len(selected_accounts)
+    BLAST_STATUS['completed_tasks'] = 0
+    BLAST_STATUS['logs'] = []
+    
     thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels))
     thread.start()
     
-    return """
-    <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
-        <h1 style="color:#22c55e;">🚀 Super Blast Initiated!</h1>
-        <p>Posting <b>{}</b> reels to <b>{}</b> accounts in the background.</p>
-        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel per account. You can close this page!)</p>
-        <br><br>
-        <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
-    </body>
-    """.format(len(selected_reels), len(selected_accounts))
+    # 👇 NAYA: Background shuru karke seedha Live Monitor pe bhej do
+    return redirect('/live_monitor')
+
+# 👇 NAYA API ROUTE: Frontend JS ko live data bhejne ke liye
+@app.route('/api/status')
+def api_status():
+    global BLAST_STATUS
+    return jsonify(BLAST_STATUS)
+
+# 👇 NAYA ROUTE: Live Terminal Screen
+@app.route('/live_monitor')
+def live_monitor():
+    if not session.get('logged_in'): return redirect('/')
+    return render_template('monitor.html')
 
 @app.route('/logout')
 def logout():
