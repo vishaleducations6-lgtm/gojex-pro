@@ -1,123 +1,155 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Gojex PRO | Link Vault</title>
-    <style>
-        body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
-        .vault-container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
-        input[type="text"], input[type="url"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 16px; }
-        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
-        .btn:hover { background: #ca8a04; }
-        .btn-blast { background: #22c55e; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-        .btn-blast:hover { background: #16a34a; }
-        
-        .reel-card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #334155; text-align: left; display: flex; align-items: flex-start; gap: 15px; }
-        .reel-card input[type="checkbox"] { width: 25px; height: 25px; cursor: pointer; margin-top: 10px; }
-        .reel-info { flex: 1; overflow: hidden; }
-        .acc-card { background: #334155; padding: 10px 15px; border-radius: 6px; margin: 10px 0; display: flex; align-items: center; gap: 10px; text-align: left;}
-        .acc-card input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
-        .modal-content { background: #1e293b; max-width: 400px; margin: 10% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 80vh; overflow-y: auto;}
-        .close-btn { position: absolute; top: 10px; right: 15px; color: white; font-size: 24px; cursor: pointer; }
-        .select-all-btn { background: #3b82f6; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
+from flask import Flask, render_template, request, redirect, session
+import os
+import requests
+import time
+import threading
+from datetime import timedelta
+from supabase import create_client
 
-    <h1 style="color: #eab308;">🔗 Link Templates Vault</h1>
-    <p style="color: #94a3b8;">Save your video URLs and Blast them anytime.</p>
+app = Flask(__name__)
+# Session config
+app.secret_key = "gojex_ultimate_secret_v3"
+app.config['SESSION_COOKIE_NAME'] = 'gojex_vip_session'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) 
 
-    <a href="/dashboard" style="color: #3b82f6; text-decoration: none; display: block; margin-bottom: 20px;">🔙 Back to Dashboard</a>
+ADMIN_USER = "zenitsu"
+ADMIN_PASS = "godcreation"
 
-    <div class="vault-container">
-        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">📥 Save New Reel Link</h2>
-        
-        <!-- Add Link Form (No file upload) -->
-        <form action="/templates" method="POST">
-            <label style="display: block; text-align: left; font-weight: bold; color: #cbd5e1;">Video URL (Catbox/Mp4 Link):</label>
-            <input type="url" name="video_url" required placeholder="https://files.catbox.moe/example.mp4">
-            
-            <label style="display: block; text-align: left; font-weight: bold; margin-top: 10px; color: #cbd5e1;">Caption:</label>
-            <textarea name="caption" rows="3" placeholder="Write your VIP caption here..."></textarea>
-            
-            <button type="submit" class="btn">💾 Save to Vault</button>
-        </form>
+# ☁️ Supabase Cloud Config
+SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
+SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-        <hr style="border: 0; border-top: 1px solid #334155; margin: 40px 0;">
+# 🌐 Meta App Config
+IG_ID = "17841437629311591"
 
-        <!-- BATCH POSTING FORM -->
-        <form action="/post_batch" method="POST">
-            
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>🗄️ Saved Reels ({{ reels|length }})</h2>
-                <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All Reels</button>
-            </div>
-            
-            {% if reels %}
-                {% for reel in reels %}
-                    <div class="reel-card">
-                        <input type="checkbox" name="selected_reels" class="reel-checkbox" value="{{ reel.id }}">
-                        <div class="reel-info">
-                            <p style="margin: 0; color: #3b82f6; font-size: 12px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
-                            <p style="margin-top: 8px; color: #e2e8f0; font-size: 14px;"><strong>Caption:</strong> {{ reel.caption }}</p>
-                        </div>
-                    </div>
-                {% endfor %}
+# --- BACKGROUND PUBLISHING BOT ---
+def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
+    print(f"🔥 Blast Mode Initiated...")
+    
+    # Database se saari reels aur accounts nikalo
+    all_reels = supabase.table("reels_bank").select("*").execute().data
+    all_accs = supabase.table("connected_accounts").select("*").execute().data
+    
+    # Sirf jo Tick kiye hain, unko filter karo
+    reels_to_post = [r for r in all_reels if str(r['id']) in selected_reel_ids]
+    accounts_to_post = [a for a in all_accs if str(a['id']) in selected_accounts_ids]
+    
+    for reel in reels_to_post:
+        for acc in accounts_to_post:
+            ig_id = acc['id']
+            access_token = acc['token']
+            try:
+                # 1. Create Container
+                create_url = f"https://graph.facebook.com/v18.0/{ig_id}/media"
+                payload = {
+                    "media_type": "REELS", 
+                    "video_url": reel['video_url'], 
+                    "caption": reel['caption'], 
+                    "access_token": access_token
+                }
                 
-                <button type="button" class="btn-blast" onclick="openModal()">
-                    🚀 CONTINUE TO SELECT ACCOUNTS
-                </button>
-            {% else %}
-                <p style="color: #94a3b8;">No reels saved yet. Add a link above!</p>
-            {% endif %}
+                create_res = requests.post(create_url, data=payload).json()
+                creation_id = create_res.get("id")
+                if not creation_id: 
+                    print(f"❌ Container Error for {acc.get('username')}:", create_res)
+                    continue
 
-            <!-- VIP Account Selection Modal -->
-            <div id="postModal" class="modal">
-                <div class="modal-content">
-                    <span class="close-btn" onclick="closeModal()">×</span>
-                    <h2 style="color: #22c55e;">🎯 Select Target Accounts</h2>
-                    
-                    <button type="button" class="select-all-btn" onclick="selectAllAccounts()">☑️ Select All Accounts</button>
+                # 2. Wait for Processing (Meta needs time)
+                time.sleep(30) 
 
-                    <div style="margin-top: 15px;">
-                        {% for acc in accounts %}
-                            <div class="acc-card">
-                                <input type="checkbox" name="selected_accounts" class="acc-checkbox" value="{{ acc.id }}">
-                                <span style="font-weight: bold;">@{{ acc.username }}</span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                    
-                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ POST TO SELECTED ACCOUNTS</button>
-                </div>
-            </div>
+                # 3. Publish to Feed
+                pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
+                pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
+                print(f"✅ Posted Reel ID {reel['id']} on @{acc.get('username')}")
+                
+            except Exception as e:
+                print(f"Error for @{acc.get('username')}:", e)
+                
+        # ⚠️ HUM STATUS UPDATE NAHI KAR RAHE. REEL HAMESHA VAULT ME RAHEGI!
 
-        </form>
-    </div>
+# --- FLASK ROUTES ---
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if session.get('logged_in'): return redirect('/dashboard')
+    if request.method == 'POST':
+        if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
+            session.permanent = True 
+            session['logged_in'] = True
+            return redirect('/dashboard')
+        return "❌ Wrong Details!", 401
+    return render_template('login.html')
 
-    <script>
-        function selectAllReels() {
-            let boxes = document.querySelectorAll('.reel-checkbox');
-            let allChecked = Array.from(boxes).every(box => box.checked);
-            boxes.forEach(box => box.checked = !allChecked);
-        }
+@app.route('/dashboard')
+def dashboard():
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        accounts = supabase.table("connected_accounts").select("*").execute().data
+    except:
+        accounts = []
+    return render_template('dashboard.html', accounts=accounts)
 
-        function selectAllAccounts() {
-            let boxes = document.querySelectorAll('.acc-checkbox');
-            let allChecked = Array.from(boxes).every(box => box.checked);
-            boxes.forEach(box => box.checked = !allChecked);
-        }
+@app.route('/templates', methods=['GET', 'POST'])
+def templates():
+    if not session.get('logged_in'): return redirect('/')
+    
+    if request.method == 'POST':
+        # Ab koi file nahi, seedha URL aayega!
+        video_url = request.form.get('video_url')
+        caption = request.form.get('caption', '')
+        
+        if video_url:
+            try:
+                supabase.table("reels_bank").insert({
+                    "video_url": video_url,
+                    "caption": caption,
+                    "status": "active" # Pending ki jagah active kardiya
+                }).execute()
+                return redirect('/templates')
+            except Exception as e:
+                return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
 
-        function openModal() {
-            document.getElementById('postModal').style.display='block';
-        }
+    try:
+        reels_data = supabase.table("reels_bank").select("*").order("created_at", desc=True).execute().data
+        accounts = supabase.table("connected_accounts").select("*").execute().data
+    except Exception as e:
+        reels_data = []
+        accounts = []
 
-        function closeModal() {
-            document.getElementById('postModal').style.display='none';
-        }
-    </script>
+    return render_template('templates_vault.html', reels=reels_data, accounts=accounts)
 
-</body>
-</html>
+@app.route('/post_batch', methods=['POST'])
+def post_batch():
+    if not session.get('logged_in'): return redirect('/')
+    
+    selected_reels = request.form.getlist('selected_reels')
+    selected_accounts = request.form.getlist('selected_accounts')
+    
+    if not selected_reels:
+        return "<h2 style='color:red;'>❌ Kam se kam 1 Reel toh select karo!</h2><br><a href='/templates'>Back</a>"
+    
+    if not selected_accounts:
+        return "<h2 style='color:red;'>❌ Kam se kam 1 Account toh select karo!</h2><br><a href='/templates'>Back</a>"
+        
+    # Start blast in background with selected IDs
+    thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels))
+    thread.start()
+    
+    return """
+    <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
+        <h1 style="color:#22c55e;">🚀 Super Blast Initiated!</h1>
+        <p>Posting <b>{}</b> reels to <b>{}</b> accounts in the background.</p>
+        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel per account. You can close this page!)</p>
+        <br><br>
+        <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
+    </body>
+    """.format(len(selected_reels), len(selected_accounts))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port, debug=True)
