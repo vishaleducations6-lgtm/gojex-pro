@@ -1,217 +1,123 @@
-from flask import Flask, render_template, request, redirect, session
-import os
-import requests
-import time
-import threading
-from datetime import timedelta
-from supabase import create_client
-
-app = Flask(__name__)
-# Session config
-app.secret_key = "gojex_ultimate_secret_v3"
-app.config['SESSION_COOKIE_NAME'] = 'gojex_vip_session'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) 
-
-ADMIN_USER = "zenitsu"
-ADMIN_PASS = "godcreation"
-
-# ☁️ Supabase Cloud Vault Config
-SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
-SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# 🌐 Meta App Config
-META_APP_ID = "1412413731007169"
-META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
-REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
-
-# --- BACKGROUND PUBLISHING BOT ---
-def blast_reels_to_instagram(accounts_list):
-    print(f"🔥 Blast Mode Initiated for {len(accounts_list)} accounts...")
-    res = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at").execute()
-    
-    for reel in res.data:
-        for acc in accounts_list:
-            ig_id = acc['id']
-            access_token = acc['token']
-            try:
-                # 1. Create Container
-                create_url = f"https://graph.facebook.com/v18.0/{ig_id}/media"
-                payload = {
-                    "media_type": "REELS", 
-                    "video_url": reel['video_url'], 
-                    "caption": reel['caption'], 
-                    "access_token": access_token
-                }
-                if reel.get('cover_url'): 
-                    payload['cover_url'] = reel['cover_url']
-                
-                create_res = requests.post(create_url, data=payload).json()
-                creation_id = create_res.get("id")
-                if not creation_id: 
-                    continue
-
-                # 2. Wait for Processing
-                time.sleep(30) 
-
-                # 3. Publish to Feed
-                pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
-                requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
-                
-            except Exception as e:
-                print(f"Error for {acc.get('username')}:", e)
-                
-        # Update Status to "published" so it disappears from Pending Vault (Prevents double posting)
-        supabase.table("reels_bank").update({"status": "published"}).eq("id", reel["id"]).execute()
-
-# --- FLASK ROUTES ---
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    if session.get('logged_in'): return redirect('/dashboard')
-    if request.method == 'POST':
-        if request.form.get('username') == ADMIN_USER and request.form.get('password') == ADMIN_PASS:
-            session.permanent = True 
-            session['logged_in'] = True
-            return redirect('/dashboard')
-        return "❌ Wrong Details!", 401
-    return render_template('login.html')
-
-@app.route('/dashboard')
-def dashboard():
-    if not session.get('logged_in'): return redirect('/')
-    try:
-        res = supabase.table("connected_accounts").select("*").execute()
-        accounts = res.data
-    except:
-        accounts = []
-    return render_template('dashboard.html', accounts=accounts)
-
-@app.route('/meta_login')
-def meta_login():
-    if not session.get('logged_in'): return redirect('/')
-    auth_url = f"https://www.instagram.com/oauth/authorize?client_id={META_APP_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=instagram_business_basic,instagram_business_content_publish"
-    return redirect(auth_url)
-
-@app.route('/meta_callback')
-def meta_callback():
-    code = request.args.get('code')
-    if not code:
-        return "❌ Login Cancelled by User.<br><a href='/dashboard'>Back</a>"
-    
-    token_url = "https://api.instagram.com/oauth/access_token"
-    payload = {
-        "client_id": META_APP_ID,
-        "client_secret": META_APP_SECRET,
-        "grant_type": "authorization_code",
-        "redirect_uri": REDIRECT_URI,
-        "code": code
-    }
-    
-    token_res = requests.post(token_url, data=payload).json()
-    access_token = token_res.get('access_token')
-    user_id = token_res.get('user_id')
-    
-    if access_token:
-        username = f"Insta_{str(user_id)[-4:]}"
-        try:
-            user_info = requests.get(f"https://graph.instagram.com/me?fields=username&access_token={access_token}").json()
-            if 'username' in user_info:
-                username = user_info['username']
-        except:
-            pass
-
-        try:
-            supabase.table("connected_accounts").upsert({
-                "id": str(user_id),
-                "username": username,
-                "token": access_token
-            }).execute()
-        except Exception as e:
-            return f"❌ Database Save Error: {e}<br><a href='/dashboard'>Back</a>"
-            
-        return redirect('/dashboard')
-    else:
-        return f"❌ Token Error: {token_res}"
-
-@app.route('/templates', methods=['GET', 'POST'])
-def templates():
-    if not session.get('logged_in'): return redirect('/')
-    
-    if request.method == 'POST':
-        file = request.files.get('reel_video')
-        cover = request.files.get('cover_image')
-        caption = request.form.get('caption', '')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gojex PRO | Link Vault</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
+        .vault-container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        input[type="text"], input[type="url"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 16px; }
+        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
+        .btn:hover { background: #ca8a04; }
+        .btn-blast { background: #22c55e; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn-blast:hover { background: #16a34a; }
         
-        if file:
-            # 👇 PRO FIX: Har file ko ek Unique ID dena taaki 409 Duplicate Error na aaye
-            unique_id = str(int(time.time()))
-            filename = f"{unique_id}_{file.filename.replace(' ', '_')}"
-            
-            try:
-                supabase.storage.from_("reels").upload(file=file.read(), path=filename, file_options={"content-type": "video/mp4"})
-                public_url = supabase.storage.from_("reels").get_public_url(filename)
-                
-                cover_url = ""
-                if cover and cover.filename:
-                    cover_name = f"cover_{unique_id}_{cover.filename.replace(' ', '_')}"
-                    supabase.storage.from_("reels").upload(file=cover.read(), path=cover_name, file_options={"content-type": cover.content_type})
-                    cover_url = supabase.storage.from_("reels").get_public_url(cover_name)
-
-                supabase.table("reels_bank").insert({
-                    "video_url": public_url,
-                    "cover_url": cover_url,
-                    "caption": caption,
-                    "status": "pending"
-                }).execute()
-                return redirect('/templates')
-            except Exception as e:
-                return f"<h2 style='color:red;'>❌ Upload Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
-
-    try:
-        response = supabase.table("reels_bank").select("*").eq("status", "pending").order("created_at", desc=True).execute()
-        reels_data = response.data
-    except Exception as e:
-        print("Vault Load Error:", e)
-        reels_data = []
-
-    return render_template('templates_vault.html', reels=reels_data)
-
-@app.route('/post_batch', methods=['POST'])
-def post_batch():
-    if not session.get('logged_in'): return redirect('/')
-    
-    try:
-        res = supabase.table("connected_accounts").select("*").execute()
-        accounts = res.data
-    except:
-        accounts = []
-    
-    if not accounts:
-        return "<h2 style='color:red;'>❌ Connect Instagram First!</h2><br><a href='/dashboard'>Back</a>"
+        .reel-card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #334155; text-align: left; display: flex; align-items: flex-start; gap: 15px; }
+        .reel-card input[type="checkbox"] { width: 25px; height: 25px; cursor: pointer; margin-top: 10px; }
+        .reel-info { flex: 1; overflow: hidden; }
+        .acc-card { background: #334155; padding: 10px 15px; border-radius: 6px; margin: 10px 0; display: flex; align-items: center; gap: 10px; text-align: left;}
+        .acc-card input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
         
-    thread = threading.Thread(target=blast_reels_to_instagram, args=(accounts,))
-    thread.start()
-    
-    return """
-    <body style="background:#0f172a; color:white; font-family:Arial; text-align:center; padding:50px;">
-        <h1 style="color:#22c55e;">🚀 Super Blast Initiated!</h1>
-        <p>GojexBot is working in the background and posting to ALL connected accounts.</p>
-        <p style="color:#94a3b8; font-size:14px;">(It takes about 30 seconds per reel. Check your Instagram shortly!)</p>
-        <br><br>
-        <a href='/templates' style="background:#eab308; color:black; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold;">🔙 Back to Vault</a>
-    </body>
-    """
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
+        .modal-content { background: #1e293b; max-width: 400px; margin: 10% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 80vh; overflow-y: auto;}
+        .close-btn { position: absolute; top: 10px; right: 15px; color: white; font-size: 24px; cursor: pointer; }
+        .select-all-btn { background: #3b82f6; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
 
-@app.route('/manual')
-def manual():
-    if not session.get('logged_in'): return redirect('/')
-    return "<h1 style='color:white; background:black; padding:20px;'>📤 Manual Upload Jald Aa Raha Hai!</h1><br><a href='/dashboard' style='color:yellow;'>Back</a>"
+    <h1 style="color: #eab308;">🔗 Link Templates Vault</h1>
+    <p style="color: #94a3b8;">Save your video URLs and Blast them anytime.</p>
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
+    <a href="/dashboard" style="color: #3b82f6; text-decoration: none; display: block; margin-bottom: 20px;">🔙 Back to Dashboard</a>
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    <div class="vault-container">
+        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">📥 Save New Reel Link</h2>
+        
+        <!-- Add Link Form (No file upload) -->
+        <form action="/templates" method="POST">
+            <label style="display: block; text-align: left; font-weight: bold; color: #cbd5e1;">Video URL (Catbox/Mp4 Link):</label>
+            <input type="url" name="video_url" required placeholder="https://files.catbox.moe/example.mp4">
+            
+            <label style="display: block; text-align: left; font-weight: bold; margin-top: 10px; color: #cbd5e1;">Caption:</label>
+            <textarea name="caption" rows="3" placeholder="Write your VIP caption here..."></textarea>
+            
+            <button type="submit" class="btn">💾 Save to Vault</button>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 40px 0;">
+
+        <!-- BATCH POSTING FORM -->
+        <form action="/post_batch" method="POST">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>🗄️ Saved Reels ({{ reels|length }})</h2>
+                <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All Reels</button>
+            </div>
+            
+            {% if reels %}
+                {% for reel in reels %}
+                    <div class="reel-card">
+                        <input type="checkbox" name="selected_reels" class="reel-checkbox" value="{{ reel.id }}">
+                        <div class="reel-info">
+                            <p style="margin: 0; color: #3b82f6; font-size: 12px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
+                            <p style="margin-top: 8px; color: #e2e8f0; font-size: 14px;"><strong>Caption:</strong> {{ reel.caption }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <button type="button" class="btn-blast" onclick="openModal()">
+                    🚀 CONTINUE TO SELECT ACCOUNTS
+                </button>
+            {% else %}
+                <p style="color: #94a3b8;">No reels saved yet. Add a link above!</p>
+            {% endif %}
+
+            <!-- VIP Account Selection Modal -->
+            <div id="postModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="closeModal()">×</span>
+                    <h2 style="color: #22c55e;">🎯 Select Target Accounts</h2>
+                    
+                    <button type="button" class="select-all-btn" onclick="selectAllAccounts()">☑️ Select All Accounts</button>
+
+                    <div style="margin-top: 15px;">
+                        {% for acc in accounts %}
+                            <div class="acc-card">
+                                <input type="checkbox" name="selected_accounts" class="acc-checkbox" value="{{ acc.id }}">
+                                <span style="font-weight: bold;">@{{ acc.username }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ POST TO SELECTED ACCOUNTS</button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+        function selectAllReels() {
+            let boxes = document.querySelectorAll('.reel-checkbox');
+            let allChecked = Array.from(boxes).every(box => box.checked);
+            boxes.forEach(box => box.checked = !allChecked);
+        }
+
+        function selectAllAccounts() {
+            let boxes = document.querySelectorAll('.acc-checkbox');
+            let allChecked = Array.from(boxes).every(box => box.checked);
+            boxes.forEach(box => box.checked = !allChecked);
+        }
+
+        function openModal() {
+            document.getElementById('postModal').style.display='block';
+        }
+
+        function closeModal() {
+            document.getElementById('postModal').style.display='none';
+        }
+    </script>
+
+</body>
+</html>
