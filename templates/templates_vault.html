@@ -2,54 +2,80 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Gojex PRO | Home</title>
+    <title>Gojex PRO | Templates Vault</title>
     <style>
-        body { background: #0f172a; color: white; font-family: Arial; padding: 50px; text-align: center; }
-        .box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; display: inline-block; margin: 10px; width: 300px;}
-        a { text-decoration: none; display: block; background: #eab308; color: black; padding: 15px; border-radius: 6px; font-weight: bold; margin-top: 15px; }
-        a:hover { background: #ca8a04; }
+        body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
+        .vault-container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        input, textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; }
+        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+        .btn:hover { background: #ca8a04; }
+        .btn-blast { background: #22c55e; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn-blast:hover { background: #16a34a; }
+        .reel-card { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #334155; text-align: left; }
+        video { width: 100%; max-height: 300px; border-radius: 6px; }
         
-        .connect-box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px dashed #3b82f6; max-width: 500px; margin: 0 auto 40px auto; }
-        .btn-fb { background: #1877F2; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; }
-        .btn-fb:hover { background: #166FE5; }
-        .status-badge { background: #22c55e; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 14px; }
+        /* Modal Styles */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
+        .modal-content { background: #1e293b; max-width: 400px; margin: 15% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; color: white; font-size: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h1 style="color: #eab308;">🔥 Gojex PRO Dashboard</h1>
-    <p style="color: #94a3b8;">Welcome back, Master Zenitsu.</p>
+    <h1 style="color: #eab308;">📁 Batch Templates Vault</h1>
+    <p style="color: #94a3b8;">Upload and schedule your reels for Blast Mode.</p>
 
-    <!-- 🔗 Meta Connection Module -->
-    <div class="connect-box">
-        <h3>🔌 API Connections</h3>
+    <a href="/dashboard" style="color: #3b82f6; text-decoration: none; display: block; margin-bottom: 20px;">🔙 Back to Dashboard</a>
+
+    <div class="vault-container">
+        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">📤 Upload New Reel</h2>
         
-        {% if is_connected %}
-            <div class="status-badge">✅ Connected to Meta & Instagram</div>
-            <p style="color: #94a3b8; font-size: 12px; margin-top: 15px;">Your accounts are linked and ready for Blast Mode.</p>
+        <!-- Upload Form -->
+        <form action="/templates" method="POST" enctype="multipart/form-data">
+            <label style="display: block; text-align: left; font-weight: bold;">Select Video (MP4):</label>
+            <input type="file" name="reel_video" accept="video/mp4" required>
+            
+            <label style="display: block; text-align: left; font-weight: bold; margin-top: 10px;">Select Cover Image (Optional):</label>
+            <input type="file" name="cover_image" accept="image/*">
+            
+            <label style="display: block; text-align: left; font-weight: bold; margin-top: 10px;">Caption:</label>
+            <textarea name="caption" rows="4" placeholder="Write your VIP caption here..."></textarea>
+            
+            <button type="submit" class="btn">☁️ Upload to Cloud Vault</button>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 40px 0;">
+
+        <h2>🗄️ Pending Reels Queue ({{ reels|length }})</h2>
+        
+        {% if reels %}
+            <button class="btn-blast" onclick="document.getElementById('postModal').style.display='block'">
+                🚀 INITIATE BLAST MODE (POST ALL)
+            </button>
+            
+            {% for reel in reels %}
+                <div class="reel-card">
+                    <video src="{{ reel.video_url }}" controls></video>
+                    <p style="margin-top: 10px; color: #cbd5e1;"><strong>Caption:</strong> {{ reel.caption }}</p>
+                </div>
+            {% endfor %}
         {% else %}
-            <p style="color: #cbd5e1; font-size: 14px;">Link your accounts to enable automated publishing.</p>
-            <a href="/meta_login" class="btn-fb" style="width: auto; margin: 20px auto 0 auto; color: white; background: #1877F2;">
-                🔗 Connect Instagram & Facebook
-            </a>
+            <p style="color: #94a3b8;">No pending reels in the vault. Upload some above!</p>
         {% endif %}
     </div>
 
-    <!-- Features -->
-    <div class="box">
-        <h2>📁 Batch Templates Vault</h2>
-        <p>Manage, caption, and schedule multi-reels in the cloud.</p>
-        <a href="/templates">Open Vault</a>
+    <!-- VIP Batch Post Modal -->
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('postModal').style.display='none'">×</span>
+            <h2 style="color: #22c55e;">🚀 Broadcast Control</h2>
+            <p style="color: #cbd5e1; font-size: 14px;">You are about to publish all pending reels to ALL connected accounts.</p>
+            
+            <form action="/post_batch" method="POST" style="margin-top: 20px;">
+                <button type="submit" class="btn-blast" style="margin-top: 20px;">⚡ PUBLISH NOW</button>
+            </form>
+        </div>
     </div>
-
-    <div class="box">
-        <h2>📤 Manual Publisher</h2>
-        <p>Directly push a single reel instantly.</p>
-        <a href="/manual">Open Publisher</a>
-    </div>
-
-    <br><br>
-    <a href="/logout" style="background: transparent; color: #ef4444; border: 1px solid #ef4444; width: 150px; margin: auto;">Logout</a>
 
 </body>
 </html>
