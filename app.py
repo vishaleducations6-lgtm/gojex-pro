@@ -25,7 +25,7 @@ META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
 
-# 👇 NAYA: Live Status Tracker (Memory Server)
+# LIVE STATUS TRACKER
 BLAST_STATUS = {
     'is_running': False,
     'total_tasks': 0,
@@ -54,8 +54,8 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
             BLAST_STATUS['logs'].insert(0, f"⏳ Uploading to @{username} (Link: {reel['video_url'][:30]}...)")
             
             try:
-                # 1. Create Container
-                create_url = f"https://graph.facebook.com/v18.0/{ig_id}/media"
+                # 👇 FIX: Changed graph.facebook.com to graph.instagram.com
+                create_url = f"https://graph.instagram.com/v21.0/{ig_id}/media"
                 payload = {
                     "media_type": "REELS", 
                     "video_url": reel['video_url'], 
@@ -67,7 +67,6 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
                 creation_id = create_res.get("id")
                 
                 if not creation_id: 
-                    # 🚨 ERROR CATCHER
                     error_msg = create_res.get('error', {}).get('message', str(create_res))
                     BLAST_STATUS['logs'].insert(0, f"❌ ERROR on @{username}: {error_msg}")
                     BLAST_STATUS['completed_tasks'] += 1
@@ -76,8 +75,8 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids):
                 BLAST_STATUS['logs'].insert(0, f"⌛ Processing Video for @{username} (Waiting 30 seconds...)")
                 time.sleep(30) 
 
-                # 3. Publish to Feed
-                pub_url = f"https://graph.facebook.com/v18.0/{ig_id}/media_publish"
+                # 👇 FIX: Changed graph.facebook.com to graph.instagram.com
+                pub_url = f"https://graph.instagram.com/v21.0/{ig_id}/media_publish"
                 pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
                 
                 if "id" in pub_res:
@@ -185,16 +184,13 @@ def post_batch():
     thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels))
     thread.start()
     
-    # 👇 NAYA: Background shuru karke seedha Live Monitor pe bhej do
     return redirect('/live_monitor')
 
-# 👇 NAYA API ROUTE: Frontend JS ko live data bhejne ke liye
 @app.route('/api/status')
 def api_status():
     global BLAST_STATUS
     return jsonify(BLAST_STATUS)
 
-# 👇 NAYA ROUTE: Live Terminal Screen
 @app.route('/live_monitor')
 def live_monitor():
     if not session.get('logged_in'): return redirect('/')
