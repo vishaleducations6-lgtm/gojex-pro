@@ -7,7 +7,6 @@ from datetime import timedelta
 from supabase import create_client
 
 app = Flask(__name__)
-# Session config
 app.secret_key = "gojex_ultimate_secret_v3"
 app.config['SESSION_COOKIE_NAME'] = 'gojex_vip_session'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30) 
@@ -20,12 +19,10 @@ SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 🌐 Meta App Config
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
 REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
 
-# LIVE STATUS TRACKER
 BLAST_STATUS = {
     'is_running': False,
     'total_tasks': 0,
@@ -33,11 +30,77 @@ BLAST_STATUS = {
     'logs': []
 }
 
-# --- BACKGROUND PUBLISHING BOT ---
+# 👇 NAYA ENGINE: Single Post Worker (Ye sab accounts par ek sath daudega)
+def process_single_post(reel, acc, cover_url):
+    global BLAST_STATUS
+    ig_id = acc['id']
+    access_token = acc['token']
+    username = acc.get('username', 'Unknown')
+    
+    BLAST_STATUS['logs'].insert(0, f"🚀 Started parallel upload for @{username}...")
+    
+    try:
+        create_url = f"https://graph.instagram.com/v21.0/{ig_id}/media"
+        payload = {
+            "media_type": "REELS", 
+            "video_url": reel['video_url'], 
+            "caption": reel['caption'], 
+            "access_token": access_token
+        }
+        
+        if cover_url:
+            payload['cover_url'] = cover_url
+        
+        create_res = requests.post(create_url, data=payload).json()
+        creation_id = create_res.get("id")
+        
+        if not creation_id: 
+            error_msg = create_res.get('error', {}).get('message', str(create_res))
+            BLAST_STATUS['logs'].insert(0, f"❌ CONTAINER ERROR on @{username}: {error_msg}")
+            BLAST_STATUS['completed_tasks'] += 1
+            return
+
+        BLAST_STATUS['logs'].insert(0, f"⌛ @{username} is scanning the video. Waiting...")
+        
+        is_ready = False
+        for step in range(15):
+            time.sleep(5)
+            status_url = f"https://graph.instagram.com/v21.0/{creation_id}?fields=status_code,status&access_token={access_token}"
+            status_res = requests.get(status_url).json()
+            
+            status_code = status_res.get('status_code')
+            if status_code == 'FINISHED':
+                is_ready = True
+                break
+            elif status_code == 'ERROR':
+                err_msg = status_res.get('status', 'Meta rejected the video/cover')
+                BLAST_STATUS['logs'].insert(0, f"❌ META REJECTION on @{username}: {err_msg}")
+                break
+        
+        if not is_ready:
+            BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ABORTED for @{username}: Processing timeout.")
+            BLAST_STATUS['completed_tasks'] += 1
+            return
+
+        pub_url = f"https://graph.instagram.com/v21.0/{ig_id}/media_publish"
+        pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
+        
+        if "id" in pub_res:
+            BLAST_STATUS['logs'].insert(0, f"✅ SUCCESS: Reel Live on @{username}! (ID: {pub_res['id']})")
+        else:
+            error_msg = pub_res.get('error', {}).get('message', str(pub_res))
+            BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ERROR on @{username}: {error_msg}")
+            
+    except Exception as e:
+        BLAST_STATUS['logs'].insert(0, f"❌ SYSTEM ERROR on @{username}: {str(e)}")
+    
+    BLAST_STATUS['completed_tasks'] += 1
+
+# 👇 NAYA ENGINE: Multi-Threading Commander
 def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url):
     global BLAST_STATUS
     BLAST_STATUS['is_running'] = True
-    BLAST_STATUS['logs'].insert(0, "🔥 Blast Mode Engine Started...")
+    BLAST_STATUS['logs'].insert(0, "🔥 MULTI-THREAD ENGINE STARTED! All accounts posting simultaneously...")
     
     all_reels = supabase.table("reels_bank").select("*").execute().data
     all_accs = supabase.table("connected_accounts").select("*").execute().data
@@ -45,74 +108,18 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
     reels_to_post = [r for r in all_reels if str(r['id']) in selected_reel_ids]
     accounts_to_post = [a for a in all_accs if str(a['id']) in selected_accounts_ids]
     
+    threads = []
+    
+    # Har reel aur har account ke liye ek naya processor on kar do (Parallel!)
     for reel in reels_to_post:
         for acc in accounts_to_post:
-            ig_id = acc['id']
-            access_token = acc['token']
-            username = acc.get('username', 'Unknown')
+            t = threading.Thread(target=process_single_post, args=(reel, acc, cover_url))
+            threads.append(t)
+            t.start()
             
-            BLAST_STATUS['logs'].insert(0, f"⏳ Uploading Video Data to @{username}...")
-            
-            try:
-                create_url = f"https://graph.instagram.com/v21.0/{ig_id}/media"
-                payload = {
-                    "media_type": "REELS", 
-                    "video_url": reel['video_url'], 
-                    "caption": reel['caption'], 
-                    "access_token": access_token
-                }
-                
-                if cover_url:
-                    payload['cover_url'] = cover_url
-                    BLAST_STATUS['logs'].insert(0, f"🖼️ Cover Image attached!")
-                
-                create_res = requests.post(create_url, data=payload).json()
-                creation_id = create_res.get("id")
-                
-                if not creation_id: 
-                    error_msg = create_res.get('error', {}).get('message', str(create_res))
-                    BLAST_STATUS['logs'].insert(0, f"❌ CONTAINER ERROR on @{username}: {error_msg}")
-                    BLAST_STATUS['completed_tasks'] += 1
-                    continue
-
-                # 👇 SMART META SCANNER (Checks status instead of blind sleep)
-                BLAST_STATUS['logs'].insert(0, f"⌛ Meta is scanning the video. Please wait...")
-                
-                is_ready = False
-                for step in range(15): # Max 75 seconds checking
-                    time.sleep(5)
-                    status_url = f"https://graph.instagram.com/v21.0/{creation_id}?fields=status_code,status&access_token={access_token}"
-                    status_res = requests.get(status_url).json()
-                    
-                    status_code = status_res.get('status_code')
-                    if status_code == 'FINISHED':
-                        is_ready = True
-                        BLAST_STATUS['logs'].insert(0, f"✅ Processing Complete! Publishing now...")
-                        break
-                    elif status_code == 'ERROR':
-                        err_msg = status_res.get('status', 'Meta rejected the video/cover (Check if cover is JPG)')
-                        BLAST_STATUS['logs'].insert(0, f"❌ META REJECTION on @{username}: {err_msg}")
-                        break
-                
-                if not is_ready:
-                    BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ABORTED: Video failed to process in Meta's system.")
-                    BLAST_STATUS['completed_tasks'] += 1
-                    continue
-
-                # 3. Publish to Feed
-                pub_url = f"https://graph.instagram.com/v21.0/{ig_id}/media_publish"
-                pub_res = requests.post(pub_url, data={"creation_id": creation_id, "access_token": access_token}).json()
-                
-                if "id" in pub_res:
-                    BLAST_STATUS['logs'].insert(0, f"✅ SUCCESS: Reel Live on @{username}! (Post ID: {pub_res['id']})")
-                else:
-                    error_msg = pub_res.get('error', {}).get('message', str(pub_res))
-                    BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ERROR on @{username}: {error_msg}")
-                    
-            except Exception as e:
-                BLAST_STATUS['logs'].insert(0, f"❌ SYSTEM ERROR on @{username}: {str(e)}")
-            
-            BLAST_STATUS['completed_tasks'] += 1
+    # Jab tak saare processor apna kaam khtm na karein, wait karo
+    for t in threads:
+        t.join()
             
     BLAST_STATUS['is_running'] = False
     BLAST_STATUS['logs'].insert(0, "🏁 BLAST MODE COMPLETED FULLY!")
@@ -171,14 +178,22 @@ def meta_callback():
         return redirect('/dashboard')
     else: return f"❌ Token Error: {token_res}"
 
+# 👇 NAYA: Account Disconnect karne ka rasta
+@app.route('/disconnect/<account_id>')
+def disconnect_account(account_id):
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        supabase.table("connected_accounts").delete().eq("id", account_id).execute()
+    except:
+        pass
+    return redirect('/dashboard')
+
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
     
     if request.method == 'POST':
         action = request.form.get('action')
-        
-        # 1. URL SAVE LOGIC
         if action == 'add_link':
             video_url = request.form.get('video_url')
             caption = request.form.get('caption', '')
@@ -188,7 +203,6 @@ def templates():
                 except Exception as e: 
                     return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
                     
-        # 2. COVER UPLOAD LOGIC
         elif action == 'add_cover':
             cover = request.files.get('cover_image')
             cover_name = request.form.get('cover_name', 'My Cover')
