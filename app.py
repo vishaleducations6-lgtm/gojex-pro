@@ -30,7 +30,6 @@ BLAST_STATUS = {
     'logs': []
 }
 
-# 👇 NAYA ENGINE: Single Post Worker (Ye sab accounts par ek sath daudega)
 def process_single_post(reel, acc, cover_url):
     global BLAST_STATUS
     ig_id = acc['id']
@@ -96,7 +95,7 @@ def process_single_post(reel, acc, cover_url):
     
     BLAST_STATUS['completed_tasks'] += 1
 
-# 👇 NAYA ENGINE: Multi-Threading Commander
+
 def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url):
     global BLAST_STATUS
     BLAST_STATUS['is_running'] = True
@@ -110,14 +109,12 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
     
     threads = []
     
-    # Har reel aur har account ke liye ek naya processor on kar do (Parallel!)
     for reel in reels_to_post:
         for acc in accounts_to_post:
             t = threading.Thread(target=process_single_post, args=(reel, acc, cover_url))
             threads.append(t)
             t.start()
             
-    # Jab tak saare processor apna kaam khtm na karein, wait karo
     for t in threads:
         t.join()
             
@@ -178,7 +175,6 @@ def meta_callback():
         return redirect('/dashboard')
     else: return f"❌ Token Error: {token_res}"
 
-# 👇 NAYA: Account Disconnect karne ka rasta
 @app.route('/disconnect/<account_id>')
 def disconnect_account(account_id):
     if not session.get('logged_in'): return redirect('/')
@@ -257,6 +253,11 @@ def api_status():
 def live_monitor():
     if not session.get('logged_in'): return redirect('/')
     return render_template('monitor.html')
+
+# 👇 NAYA ROUTE: 24/7 Uptime Ke Liye
+@app.route('/ping')
+def ping():
+    return "PONG! Gojex PRO is awake! 🚀", 200
 
 @app.route('/logout')
 def logout():
