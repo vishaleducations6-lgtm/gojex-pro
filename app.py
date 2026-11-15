@@ -184,6 +184,36 @@ def disconnect_account(account_id):
         pass
     return redirect('/dashboard')
 
+# 👇 NAYA ROUTE: Delete ALL Accounts
+@app.route('/disconnect_all')
+def disconnect_all():
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        supabase.table("connected_accounts").delete().neq("id", "0").execute()
+    except:
+        pass
+    return redirect('/dashboard')
+
+# 👇 NAYA ROUTE: Clear ALL Reels
+@app.route('/clear_reels')
+def clear_reels():
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        supabase.table("reels_bank").delete().neq("id", 0).execute()
+    except:
+        pass
+    return redirect('/templates')
+
+# 👇 NAYA ROUTE: Clear ALL Covers
+@app.route('/clear_covers')
+def clear_covers():
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        supabase.table("covers_bank").delete().neq("id", 0).execute()
+    except:
+        pass
+    return redirect('/templates')
+
 @app.route('/templates', methods=['GET', 'POST'])
 def templates():
     if not session.get('logged_in'): return redirect('/')
@@ -254,7 +284,6 @@ def live_monitor():
     if not session.get('logged_in'): return redirect('/')
     return render_template('monitor.html')
 
-# 👇 NAYA ROUTE: 24/7 Uptime Ke Liye
 @app.route('/ping')
 def ping():
     return "PONG! Gojex PRO is awake! 🚀", 200
