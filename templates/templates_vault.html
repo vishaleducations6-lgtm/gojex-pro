@@ -7,7 +7,7 @@
         body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
         .vault-container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
         .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .box { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; }
+        .box { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; position: relative; }
         
         input[type="text"], input[type="url"], input[type="file"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 14px; }
         .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
@@ -21,6 +21,9 @@
         .modal-content { background: #1e293b; max-width: 500px; margin: 5% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 85vh; overflow-y: auto; text-align: left;}
         .close-btn { position: absolute; top: 10px; right: 15px; color: white; font-size: 24px; cursor: pointer; }
         .select-all-btn { background: #3b82f6; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        
+        .btn-clear { background: #ef4444; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; text-decoration: none; border: none; cursor: pointer; }
+        .btn-clear:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -46,7 +49,11 @@
 
             <!-- COVER UPLOAD BOX -->
             <div class="box">
-                <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0;">🖼️ Upload Cover Image</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">🖼️ Upload Cover</h3>
+                    <!-- 👇 NAYA: Clear All Covers Button -->
+                    <a href="/clear_covers" class="btn-clear" onclick="return confirm('Are you sure you want to delete all saved covers?')">🗑️ Clear All</a>
+                </div>
                 <form action="/templates" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="add_cover">
                     <input type="text" name="cover_name" required placeholder="Cover Name (e.g. Sukuna Theme 1)">
@@ -63,7 +70,11 @@
             
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>🗄️ Saved Reels ({{ reels|length }})</h2>
-                <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All Reels</button>
+                <div>
+                    <!-- 👇 NAYA: Clear All Reels Button -->
+                    <a href="/clear_reels" class="btn-clear" style="margin-right: 10px;" onclick="return confirm('Delete all saved reel links?')">🗑️ Clear All Links</a>
+                    <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All Reels</button>
+                </div>
             </div>
             
             {% if reels %}
@@ -145,4 +156,4 @@
     </script>
 
 </body>
-    </html>
+</html>
