@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Gojex PRO | Link & Cover Vault</title>
+    <title>Gojex PRO | Modular Vault</title>
     <style>
         body { background: #0f172a; color: white; font-family: Arial; padding: 30px; text-align: center; }
-        .vault-container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
-        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .vault-container { max-width: 1000px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
         .box { background: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155; position: relative; }
         
         input[type="text"], input[type="url"], input[type="file"], textarea { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: none; background: #334155; color: white; box-sizing: border-box; font-size: 14px; }
-        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
+        .btn { background: #eab308; color: black; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
         .btn:hover { background: #ca8a04; }
         .btn-blast { background: #22c55e; color: white; padding: 15px; width: 100%; font-size: 18px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         
-        .list-card { background: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; align-items: flex-start; gap: 15px; text-align: left; }
-        .list-card input[type="checkbox"], .list-card input[type="radio"] { width: 20px; height: 20px; cursor: pointer; margin-top: 5px; }
+        .list-card { background: #334155; padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; gap: 15px; text-align: left; }
+        .list-card input[type="checkbox"], .list-card input[type="radio"] { width: 20px; height: 20px; cursor: pointer; }
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
         .modal-content { background: #1e293b; max-width: 500px; margin: 5% auto; padding: 30px; border-radius: 12px; border: 1px solid #334155; position: relative; max-height: 85vh; overflow-y: auto; text-align: left;}
@@ -28,8 +28,8 @@
 </head>
 <body>
 
-    <h1 style="color: #eab308;">🔗 Link & Cover Vault</h1>
-    <p style="color: #94a3b8;">Manage your Videos, Covers, and execute Blast Mode.</p>
+    <h1 style="color: #eab308;">🔗 The Modular Vault</h1>
+    <p style="color: #94a3b8;">Save Videos, Covers, and Captions independently.</p>
 
     <a href="/dashboard" style="color: #3b82f6; text-decoration: none; display: block; margin-bottom: 20px;">🔙 Back to Dashboard</a>
 
@@ -38,12 +38,11 @@
         <div class="grid-container">
             <!-- REEL LINK UPLOAD BOX -->
             <div class="box">
-                <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0;">📥 Save Reel URL</h3>
+                <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 0;">📥 Save Video URL</h3>
                 <form action="/templates" method="POST">
                     <input type="hidden" name="action" value="add_link">
                     <input type="url" name="video_url" required placeholder="https://files.catbox.moe/example.mp4">
-                    <textarea name="caption" rows="2" placeholder="Write caption here..."></textarea>
-                    <button type="submit" class="btn">💾 Save Reel Link</button>
+                    <button type="submit" class="btn">💾 Save URL</button>
                 </form>
             </div>
 
@@ -51,14 +50,27 @@
             <div class="box">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 10px;">
                     <h3 style="margin: 0;">🖼️ Upload Cover</h3>
-                    <!-- 👇 NAYA: Clear All Covers Button -->
-                    <a href="/clear_covers" class="btn-clear" onclick="return confirm('Are you sure you want to delete all saved covers?')">🗑️ Clear All</a>
+                    <a href="/clear_covers" class="btn-clear" onclick="return confirm('Clear all saved covers?')">🗑️ Clear</a>
                 </div>
                 <form action="/templates" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="add_cover">
-                    <input type="text" name="cover_name" required placeholder="Cover Name (e.g. Sukuna Theme 1)">
+                    <input type="text" name="cover_name" required placeholder="Cover Title">
                     <input type="file" name="cover_image" accept="image/*" required>
-                    <button type="submit" class="btn" style="background: #3b82f6; color: white;">☁️ Upload Cover</button>
+                    <button type="submit" class="btn" style="background: #3b82f6; color: white;">☁️ Save Cover</button>
+                </form>
+            </div>
+
+            <!-- CAPTION SAVE BOX -->
+            <div class="box">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">✍️ Save Caption</h3>
+                    <a href="/clear_captions" class="btn-clear" onclick="return confirm('Clear all saved captions?')">🗑️ Clear</a>
+                </div>
+                <form action="/templates" method="POST">
+                    <input type="hidden" name="action" value="add_caption">
+                    <input type="text" name="caption_name" required placeholder="Caption Title (e.g., Viral Promo)">
+                    <textarea name="caption_text" rows="2" required placeholder="Write your VIP caption here..."></textarea>
+                    <button type="submit" class="btn" style="background: #22c55e; color: white;">💾 Save Caption</button>
                 </form>
             </div>
         </div>
@@ -69,11 +81,10 @@
         <form action="/post_batch" method="POST">
             
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>🗄️ Saved Reels ({{ reels|length }})</h2>
+                <h2>🗄️ Saved Video Links ({{ reels|length }})</h2>
                 <div>
-                    <!-- 👇 NAYA: Clear All Reels Button -->
-                    <a href="/clear_reels" class="btn-clear" style="margin-right: 10px;" onclick="return confirm('Delete all saved reel links?')">🗑️ Clear All Links</a>
-                    <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All Reels</button>
+                    <a href="/clear_reels" class="btn-clear" style="margin-right: 10px;" onclick="return confirm('Delete all saved video links?')">🗑️ Clear Links</a>
+                    <button type="button" class="select-all-btn" onclick="selectAllReels()">☑️ Select All</button>
                 </div>
             </div>
             
@@ -81,16 +92,13 @@
                 {% for reel in reels %}
                     <div class="list-card">
                         <input type="checkbox" name="selected_reels" class="reel-checkbox" value="{{ reel.id }}">
-                        <div>
-                            <p style="margin: 0; color: #3b82f6; font-size: 13px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
-                            <p style="margin-top: 5px; color: #e2e8f0; font-size: 13px;">{{ reel.caption }}</p>
-                        </div>
+                        <p style="margin: 0; color: #3b82f6; font-size: 13px; word-break: break-all;">🔗 {{ reel.video_url }}</p>
                     </div>
                 {% endfor %}
                 
-                <button type="button" class="btn-blast" onclick="openModal()">🚀 PROCEED TO BLAST</button>
+                <button type="button" class="btn-blast" onclick="openModal()">🚀 PROCEED TO COMPILE & BLAST</button>
             {% else %}
-                <p style="color: #94a3b8;">No reels saved yet.</p>
+                <p style="color: #94a3b8;">No video links saved yet.</p>
             {% endif %}
 
             <!-- FINAL BLAST SETTINGS MODAL -->
@@ -98,11 +106,11 @@
                 <div class="modal-content">
                     <span class="close-btn" onclick="closeModal()">×</span>
                     
-                    <h2 style="color: #eab308; margin-top: 0;">⚙️ Blast Configuration</h2>
+                    <h2 style="color: #eab308; margin-top: 0;">⚙️ Compile Your Post</h2>
                     
                     <!-- 1. COVER SELECTION -->
                     <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px;">1. Select Global Cover (Optional)</h3>
-                    <div style="max-height: 150px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px;">
+                    <div style="max-height: 120px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px;">
                         <label style="display: block; margin-bottom: 10px; cursor: pointer;">
                             <input type="radio" name="selected_cover_url" value="" checked> 🚫 No Cover (Default)
                         </label>
@@ -114,8 +122,22 @@
                         {% endfor %}
                     </div>
 
-                    <!-- 2. ACCOUNT SELECTION -->
-                    <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 25px;">2. Select Target Accounts</h3>
+                    <!-- 2. CAPTION SELECTION -->
+                    <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 20px;">2. Select Global Caption (Optional)</h3>
+                    <div style="max-height: 120px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="selected_caption_text" value="" checked> 🚫 No Caption
+                        </label>
+                        {% for cap in captions %}
+                            <label style="display: block; margin-bottom: 10px; cursor: pointer;" title="{{ cap.caption_text }}">
+                                <input type="radio" name="selected_caption_text" value="{{ cap.caption_text }}"> 
+                                ✍️ {{ cap.caption_name }}
+                            </label>
+                        {% endfor %}
+                    </div>
+
+                    <!-- 3. ACCOUNT SELECTION -->
+                    <h3 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 20px;">3. Select Target Accounts</h3>
                     <button type="button" class="select-all-btn" onclick="selectAllAccounts()">☑️ Select All Accounts</button>
                     <div style="max-height: 150px; overflow-y: auto; background: #0f172a; padding: 10px; border-radius: 6px; margin-top: 10px;">
                         {% for acc in accounts %}
@@ -126,7 +148,7 @@
                         {% endfor %}
                     </div>
                     
-                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ CONFIRM & INITIATE BLAST</button>
+                    <button type="submit" class="btn-blast" style="margin-top: 25px;">⚡ COMPILE & BLAST</button>
                 </div>
             </div>
 
