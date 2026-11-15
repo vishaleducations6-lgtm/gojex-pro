@@ -30,7 +30,7 @@ BLAST_STATUS = {
     'logs': []
 }
 
-def process_single_post(reel, acc, cover_url):
+def process_single_post(reel, acc, cover_url, caption_text):
     global BLAST_STATUS
     ig_id = acc['id']
     access_token = acc['token']
@@ -43,7 +43,7 @@ def process_single_post(reel, acc, cover_url):
         payload = {
             "media_type": "REELS", 
             "video_url": reel['video_url'], 
-            "caption": reel['caption'], 
+            "caption": caption_text, # 👇 Global caption used here!
             "access_token": access_token
         }
         
@@ -96,7 +96,7 @@ def process_single_post(reel, acc, cover_url):
     BLAST_STATUS['completed_tasks'] += 1
 
 
-def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url):
+def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url, caption_text):
     global BLAST_STATUS
     BLAST_STATUS['is_running'] = True
     BLAST_STATUS['logs'].insert(0, "🔥 MULTI-THREAD ENGINE STARTED! All accounts posting simultaneously...")
@@ -111,7 +111,7 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
     
     for reel in reels_to_post:
         for acc in accounts_to_post:
-            t = threading.Thread(target=process_single_post, args=(reel, acc, cover_url))
+            t = threading.Thread(target=process_single_post, args=(reel, acc, cover_url, caption_text))
             threads.append(t)
             t.start()
             
@@ -184,7 +184,6 @@ def disconnect_account(account_id):
         pass
     return redirect('/dashboard')
 
-# 👇 NAYA ROUTE: Delete ALL Accounts
 @app.route('/disconnect_all')
 def disconnect_all():
     if not session.get('logged_in'): return redirect('/')
@@ -194,7 +193,6 @@ def disconnect_all():
         pass
     return redirect('/dashboard')
 
-# 👇 NAYA ROUTE: Clear ALL Reels
 @app.route('/clear_reels')
 def clear_reels():
     if not session.get('logged_in'): return redirect('/')
@@ -204,12 +202,21 @@ def clear_reels():
         pass
     return redirect('/templates')
 
-# 👇 NAYA ROUTE: Clear ALL Covers
 @app.route('/clear_covers')
 def clear_covers():
     if not session.get('logged_in'): return redirect('/')
     try:
         supabase.table("covers_bank").delete().neq("id", 0).execute()
+    except:
+        pass
+    return redirect('/templates')
+
+# 👇 NAYA ROUTE: Clear ALL Captions
+@app.route('/clear_captions')
+def clear_captions():
+    if not session.get('logged_in'): return redirect('/')
+    try:
+        supabase.table("captions_bank").delete().neq("id", 0).execute()
     except:
         pass
     return redirect('/templates')
@@ -220,12 +227,13 @@ def templates():
     
     if request.method == 'POST':
         action = request.form.get('action')
+        
         if action == 'add_link':
             video_url = request.form.get('video_url')
-            caption = request.form.get('caption', '')
             if video_url:
                 try:
-                    supabase.table("reels_bank").insert({"video_url": video_url, "caption": caption, "status": "active"}).execute()
+                    # Caption ab yahan se hata diya
+                    supabase.table("reels_bank").insert({"video_url": video_url, "caption": "", "status": "active"}).execute()
                 except Exception as e: 
                     return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
                     
@@ -242,16 +250,27 @@ def templates():
                 except Exception as e:
                     return f"<h2 style='color:red;'>❌ Cover Upload Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
                     
+        # 👇 NAYA LOGIC: Save Caption
+        elif action == 'add_caption':
+            caption_name = request.form.get('caption_name', 'My Caption')
+            caption_text = request.form.get('caption_text', '')
+            if caption_text:
+                try:
+                    supabase.table("captions_bank").insert({"caption_name": caption_name, "caption_text": caption_text}).execute()
+                except Exception as e:
+                    return f"<h2 style='color:red;'>❌ Caption Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
+                    
         return redirect('/templates')
 
     try:
         reels_data = supabase.table("reels_bank").select("*").order("created_at", desc=True).execute().data
         accounts = supabase.table("connected_accounts").select("*").execute().data
         covers = supabase.table("covers_bank").select("*").execute().data
+        captions = supabase.table("captions_bank").select("*").execute().data # Fetch Captions
     except: 
-        reels_data, accounts, covers = [], [], []
+        reels_data, accounts, covers, captions = [], [], [], []
 
-    return render_template('templates_vault.html', reels=reels_data, accounts=accounts, covers=covers)
+    return render_template('templates_vault.html', reels=reels_data, accounts=accounts, covers=covers, captions=captions)
 
 @app.route('/post_batch', methods=['POST'])
 def post_batch():
@@ -260,6 +279,7 @@ def post_batch():
     selected_reels = request.form.getlist('selected_reels')
     selected_accounts = request.form.getlist('selected_accounts')
     selected_cover_url = request.form.get('selected_cover_url') 
+    selected_caption_text = request.form.get('selected_caption_text', '') # Get Global Caption
     
     if not selected_reels or not selected_accounts:
         return "<h2 style='color:red;'>❌ Kam se kam 1 Reel aur 1 Account select karo!</h2><br><a href='/templates'>Back</a>"
@@ -269,7 +289,8 @@ def post_batch():
     BLAST_STATUS['completed_tasks'] = 0
     BLAST_STATUS['logs'] = []
     
-    thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels, selected_cover_url))
+    # Thread me caption bhej do
+    thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels, selected_cover_url, selected_caption_text))
     thread.start()
     
     return redirect('/live_monitor')
