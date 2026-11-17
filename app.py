@@ -43,7 +43,7 @@ def process_single_post(reel, acc, cover_url, caption_text):
         payload = {
             "media_type": "REELS", 
             "video_url": reel['video_url'], 
-            "caption": caption_text, # 👇 Global caption used here!
+            "caption": caption_text, 
             "access_token": access_token
         }
         
@@ -59,11 +59,12 @@ def process_single_post(reel, acc, cover_url, caption_text):
             BLAST_STATUS['completed_tasks'] += 1
             return
 
-        BLAST_STATUS['logs'].insert(0, f"⌛ @{username} is scanning the video. Waiting...")
+        BLAST_STATUS['logs'].insert(0, f"⌛ @{username} is scanning the video. Waiting for Meta to process...")
         
+        # 🔥 BHUMI'S TIMEOUT FIX: 30 steps * 10 seconds = 5 Minutes total wait time!
         is_ready = False
-        for step in range(15):
-            time.sleep(5)
+        for step in range(30):
+            time.sleep(10)
             status_url = f"https://graph.instagram.com/v21.0/{creation_id}?fields=status_code,status&access_token={access_token}"
             status_res = requests.get(status_url).json()
             
@@ -77,7 +78,7 @@ def process_single_post(reel, acc, cover_url, caption_text):
                 break
         
         if not is_ready:
-            BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ABORTED for @{username}: Processing timeout.")
+            BLAST_STATUS['logs'].insert(0, f"❌ PUBLISH ABORTED for @{username}: Processing timeout after 5 minutes.")
             BLAST_STATUS['completed_tasks'] += 1
             return
 
@@ -121,7 +122,7 @@ def blast_reels_to_instagram(selected_accounts_ids, selected_reel_ids, cover_url
     BLAST_STATUS['is_running'] = False
     BLAST_STATUS['logs'].insert(0, "🏁 BLAST MODE COMPLETED FULLY!")
 
-# --- FLASK ROUTES ---
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if session.get('logged_in'): return redirect('/dashboard')
@@ -211,7 +212,6 @@ def clear_covers():
         pass
     return redirect('/templates')
 
-# 👇 NAYA ROUTE: Clear ALL Captions
 @app.route('/clear_captions')
 def clear_captions():
     if not session.get('logged_in'): return redirect('/')
@@ -232,7 +232,6 @@ def templates():
             video_url = request.form.get('video_url')
             if video_url:
                 try:
-                    # Caption ab yahan se hata diya
                     supabase.table("reels_bank").insert({"video_url": video_url, "caption": "", "status": "active"}).execute()
                 except Exception as e: 
                     return f"<h2 style='color:red;'>❌ Save Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
@@ -250,7 +249,6 @@ def templates():
                 except Exception as e:
                     return f"<h2 style='color:red;'>❌ Cover Upload Error: {str(e)}</h2><br><a href='/templates'>Back</a>"
                     
-        # 👇 NAYA LOGIC: Save Caption
         elif action == 'add_caption':
             caption_name = request.form.get('caption_name', 'My Caption')
             caption_text = request.form.get('caption_text', '')
@@ -266,7 +264,7 @@ def templates():
         reels_data = supabase.table("reels_bank").select("*").order("created_at", desc=True).execute().data
         accounts = supabase.table("connected_accounts").select("*").execute().data
         covers = supabase.table("covers_bank").select("*").execute().data
-        captions = supabase.table("captions_bank").select("*").execute().data # Fetch Captions
+        captions = supabase.table("captions_bank").select("*").execute().data
     except: 
         reels_data, accounts, covers, captions = [], [], [], []
 
@@ -279,7 +277,7 @@ def post_batch():
     selected_reels = request.form.getlist('selected_reels')
     selected_accounts = request.form.getlist('selected_accounts')
     selected_cover_url = request.form.get('selected_cover_url') 
-    selected_caption_text = request.form.get('selected_caption_text', '') # Get Global Caption
+    selected_caption_text = request.form.get('selected_caption_text', '')
     
     if not selected_reels or not selected_accounts:
         return "<h2 style='color:red;'>❌ Kam se kam 1 Reel aur 1 Account select karo!</h2><br><a href='/templates'>Back</a>"
@@ -289,7 +287,6 @@ def post_batch():
     BLAST_STATUS['completed_tasks'] = 0
     BLAST_STATUS['logs'] = []
     
-    # Thread me caption bhej do
     thread = threading.Thread(target=blast_reels_to_instagram, args=(selected_accounts, selected_reels, selected_cover_url, selected_caption_text))
     thread.start()
     
