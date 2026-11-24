@@ -21,7 +21,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
-REDIRECT_URI = "https://gojex-pro.onrender.com/meta_callback"
+REDIRECT_URI = "https://babu-pro.onrender.com/meta_callback"
 
 BLAST_STATUS = {
     'is_running': False,
