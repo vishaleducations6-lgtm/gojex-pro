@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gojex PRO | Manual Publisher</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+    .container { max-width: 780px; margin: 0 auto; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .back-btn { color: #facc15; text-decoration: none; font-weight: 600; font-size: 14px; }
+    h1 { color: #facc15; margin: 0; font-size: 24px; }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 { margin-top: 0; font-size: 18px; color: #fde047; }
+
+    .mode-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+    .mode-btn {
+      flex: 1; padding: 11px; border: 1px solid #475569; border-radius: 10px;
+      background: #0f172a; color: #cbd5e1; font-weight: 600; cursor: pointer;
+    }
+    .mode-btn.active { background: #eab308; color: #0f172a; border-color: #eab308; }
+
+    input[type="text"], textarea, select {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #475569;
+      background: #0f172a; color: #f8fafc; margin-bottom: 12px; font-size: 14px;
+    }
+    .file-box {
+      display: block;
+      border: 2px dashed #475569; border-radius: 10px; padding: 18px;
+      text-align: center; margin-bottom: 12px; background: #0f172a; cursor: pointer;
+    }
+    .file-box input { display: none; }
+
+    .btn-gold {
+      width: 100%; padding: 13px; border: none; border-radius: 10px;
+      background: #eab308; color: #0f172a; font-weight: 700; font-size: 15px; cursor: pointer;
+    }
+    .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-blast {
+      width: 100%; padding: 15px; border: none; border-radius: 12px;
+      background: linear-gradient(90deg, #f97316, #ec4899);
+      color: #fff; font-weight: 800; font-size: 17px; cursor: pointer; margin-top: 10px;
+    }
+    .btn-blast:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .progress-wrap { display: none; margin-top: 12px; }
+    .progress-bar-bg { background: #0f172a; border-radius: 8px; height: 12px; overflow: hidden; }
+    .progress-bar-fill { background: #22c55e; height: 100%; width: 0%; transition: width 0.3s; }
+    .progress-text { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+
+    .pack-list { display: flex; flex-direction: column; gap: 10px; }
+    .pack-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px; background: #0f172a; border: 2px solid #334155;
+      border-radius: 10px; cursor: pointer;
+    }
+    .pack-item.selected { border-color: #eab308; background: #1c2436; }
+    .badge {
+      background: #334155; color: #facc15; padding: 3px 9px;
+      border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 8px;
+    }
+    .del-btn {
+      background: #ef4444; color: #fff; border: none; border-radius: 6px;
+      padding: 5px 10px; cursor: pointer; font-size: 12px;
+    }
+
+    .acc-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .acc-chip {
+      display: flex; align-items: center; gap: 8px; background: #16a34a;
+      padding: 9px 14px; border-radius: 10px; font-weight: 600; cursor: pointer;
+    }
+    .acc-chip input { width: 16px; height: 16px; }
+
+    #coverPreview { max-height: 120px; border-radius: 8px; margin-top: 8px; display: none; }
+
+    .log-box {
+      background: #020617; border: 1px solid #334155; border-radius: 10px;
+      padding: 14px; margin-top: 15px; font-family: monospace; font-size: 13px;
+      max-height: 250px; overflow-y: auto; display: none; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">
+    <h1>📤 Manual Publisher</h1>
+    <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+  </div>
+
+  <!-- SECTION 1: GALLERY SE REEL UPLOAD & SAVE -->
+  <div class="card">
+    <h2>1. Upload & Save Reels from Gallery</h2>
+    <div class="mode-tabs">
+      <button type="button" class="mode-btn active" id="btnSingle" onclick="setMode('single')">🎬 Single Reel</button>
+      <button type="button" class="mode-btn" id="btnMultiple" onclick="setMode('multiple')">📦 Multiple Pack (15–20 Reels)</button>
+    </div>
+
+    <label class="file-box" for="videoInput">
+      <div id="fileLabelText">📁 Tap to select 1 Reel from Gallery</div>
+      <input type="file" id="videoInput" accept="video/mp4,video/*" onchange="onVideosSelected()">
+    </label>
+
+    <input type="text" id="packNameInput" placeholder="Enter Reel / Pack Name (e.g. Gym_Pack_1)">
+    <button type="button" class="btn-gold" id="savePackBtn" onclick="uploadAndSavePack()">☁️ Upload to Cloud & Save</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">Preparing...</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: SELECT SAVED REEL / PACK -->
+  <div class="card">
+    <h2>2. Select Saved Reel / Pack</h2>
+    <div class="pack-list" id="packList">
+      {% if packs %}
+        {% for p in packs %}
+        <div class="pack-item" data-id="{{ p.id }}" onclick="selectPack({{ p.id }}, this)">
+          <div>
+            <strong>{{ p.name }}</strong>
+            <span class="badge">{{ p.video_urls | length }} Reel(s) • {{ p.mode | upper }}</span>
+          </div>
+          <button type="button" class="del-btn" onclick="deletePack(event, {{ p.id }})">Delete</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:#94a3b8; margin:0;">Abhi koi reel save nahi hai. Upar gallery se upload karo!</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- SECTION 3: COVER & CAPTION -->
+  <div class="card">
+    <h2>3. Cover & Caption</h2>
+    <label class="file-box" for="coverInput" style="padding:12px;">
+      <div id="coverLabel">🖼️ Tap to Upload Cover from Gallery (Optional)</div>
+      <input type="file" id="coverInput" accept="image/*" onchange="uploadCoverImage()">
+      <img id="coverPreview" alt="Cover preview">
+    </label>
+    <input type="hidden" id="coverUrlInput">
+
+    <textarea id="captionInput" rows="4" placeholder="Write your Reel caption & hashtags here..."></textarea>
+  </div>
+
+  <!-- SECTION 4: SELECT ACCOUNTS & BLAST -->
+  <div class="card">
+    <h2>4. Select Accounts & BLAST</h2>
+    <div class="acc-list">
+      {% for acc in accounts %}
+      <label class="acc-chip">
+        <input type="checkbox" class="acc-checkbox" value="{{ acc.id }}" checked>
+        ✅ @{{ acc.username }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="btn-blast" id="blastBtn" onclick="startBlast()">🚀 BLAST NOW</button>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<script>
+  let currentMode = "single";
+  let selectedPackId = null;
+
+  function setMode(mode) {
+    currentMode = mode;
+    const input = document.getElementById("videoInput");
+    document.getElementById("btnSingle").classList.toggle("active", mode === "single");
+    document.getElementById("btnMultiple").classList.toggle("active", mode === "multiple");
+
+    input.value = "";
+    if (mode === "multiple") {
+      input.setAttribute("multiple", "multiple");
+      document.getElementById("fileLabelText").innerText = "📦 Tap to select Multiple Reels (15–20) from Gallery";
+    } else {
+      input.removeAttribute("multiple");
+      document.getElementById("fileLabelText").innerText = "📁 Tap to select 1 Reel from Gallery";
+    }
+  }
+
+  function onVideosSelected() {
+    const files = document.getElementById("videoInput").files;
+    if (files.length > 0) {
+      document.getElementById("fileLabelText").innerText = `✅ ${files.length} video(s) selected from Gallery`;
+    }
+  }
+
+  async function uploadAndSavePack() {
+    const files = document.getElementById("videoInput").files;
+    const name = document.getElementById("packNameInput").value.trim();
+
+    if (!files.length) return alert("Pehle gallery se video select karo babu!");
+    if (!name) return alert("Reel ya Pack ka koi naam toh de do!");
+
+    const btn = document.getElementById("savePackBtn");
+    const pWrap = document.getElementById("progressWrap");
+    const pFill = document.getElementById("progressFill");
+    const pText = document.getElementById("progressText");
+
+    btn.disabled = true;
+    pWrap.style.display = "block";
+    const uploadedUrls = [];
+
+    for (let i = 0; i < files.length; i++) {
+      pText.innerText = `⏳ Uploading video ${i + 1} of ${files.length} to Dropbox...`;
+      pFill.style.width = `${Math.round((i / files.length) * 100)}%`;
+
+      const formData = new FormData();
+      formData.append("video", files[i]);
+
+      try {
+        const res = await fetch("/api/upload-video-dropbox", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        uploadedUrls.push(data.url);
+      } catch (err) {
+        alert(`Video ${i + 1} upload fail ho gaya: ` + err.message);
+        btn.disabled = false;
+        return;
+      }
+    }
+
+    pFill.style.width = "100%";
+    pText.innerText = "💾 Saving pack to database...";
+
+    const saveRes = await fetch("/api/save-reel-pack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mode: currentMode, video_urls: uploadedUrls })
+    });
+    const saveData = await saveRes.json();
+
+    if (saveData.success) {
+      pText.innerText = "✅ Saved successfully! Refreshing...";
+      setTimeout(() => location.reload(), 700);
+    } else {
+      alert("Save error: " + saveData.error);
+      btn.disabled = false;
+    }
+  }
+
+  function selectPack(id, el) {
+    selectedPackId = id;
+    document.querySelectorAll(".pack-item").forEach(item => item.classList.remove("selected"));
+    el.classList.add("selected");
+  }
+
+  async function deletePack(e, id) {
+    e.stopPropagation();
+    if (!confirm("Is saved reel/pack ko delete karna hai?")) return;
+    await fetch(`/api/delete-reel-pack/${id}`, { method: "DELETE" });
+    location.reload();
+  }
+
+  async function uploadCoverImage() {
+    const file = document.getElementById("coverInput").files[0];
+    if (!file) return;
+
+    document.getElementById("coverLabel").innerText = "⏳ Uploading cover...";
+    const formData = new FormData();
+    formData.append("cover", file);
+
+    const res = await fetch("/api/upload-cover", { method: "POST", body: formData });
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById("coverUrlInput").value = data.url;
+      document.getElementById("coverLabel").innerText = "✅ Cover Ready!";
+      const img = document.getElementById("coverPreview");
+      img.src = data.url;
+      img.style.display = "inline-block";
+    } else {
+      document.getElementById("coverLabel").innerText = "❌ Cover upload failed";
+    }
+  }
+
+  async function startBlast() {
+    if (!selectedPackId) return alert("Pehle Step 2 me koi Saved Reel ya Pack select karo!");
+
+    const accountIds = Array.from(document.querySelectorAll(".acc-checkbox:checked")).map(cb => cb.value);
+    if (!accountIds.length) return alert("Kam se kam 1 Instagram account select karo!");
+
+    const caption = document.getElementById("captionInput").value;
+    const coverUrl = document.getElementById("coverUrlInput").value;
+    const blastBtn = document.getElementById("blastBtn");
+    const logBox = document.getElementById("logBox");
+
+    blastBtn.disabled = true;
+    blastBtn.innerText = "🔥 BLASTING IN PROGRESS...";
+    logBox.style.display = "block";
+    logBox.innerHTML = "⏳ Initializing Blast Engine...";
+
+    const res = await fetch("/api/manual-blast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pack_id: selectedPackId, caption, cover_url: coverUrl, account_ids: accountIds })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      logBox.innerHTML = "❌ Error: " + data.error;
+      blastBtn.disabled = false;
+      blastBtn.innerText = "🚀 BLAST NOW";
+      return;
+    }
+
+    const poll = setInterval(async () => {
+      const sRes = await fetch(`/api/blast-status/${data.job_id}`);
+      const sData = await sRes.json();
+      logBox.innerHTML = sData.logs.join("<br>");
+      logBox.scrollTop = logBox.scrollHeight;
+
+      if (sData.done) {
+        clearInterval(poll);
+        blastBtn.disabled = false;
+        blastBtn.innerText = "🚀 BLAST NOW";
+      }
+    }, 3000);
+  }
+</script>
+</body>
+</html>
