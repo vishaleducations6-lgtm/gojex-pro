@@ -39,6 +39,59 @@
     }
     .file-box input { display: none; }
 
+    .queue-box {
+      display: none;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #facc15;
+      font-weight: 600;
+    }
+    .queue-list {
+      max-height: 170px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .queue-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e293b;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .queue-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 82%;
+    }
+    .rm-btn {
+      background: #ef4444; color: #fff; border: none; border-radius: 5px;
+      padding: 3px 8px; cursor: pointer; font-size: 12px;
+    }
+    .btn-add-more {
+      width: 100%; padding: 10px; border: 1px dashed #eab308; border-radius: 10px;
+      background: transparent; color: #facc15; font-weight: 700; font-size: 14px;
+      cursor: pointer; margin-bottom: 12px; display: none;
+    }
+    .btn-clear-q {
+      background: transparent; border: none; color: #f87171;
+      cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+
     .btn-gold {
       width: 100%; padding: 13px; border: none; border-radius: 10px;
       background: #eab308; color: #0f172a; font-weight: 700; font-size: 15px; cursor: pointer;
@@ -101,13 +154,26 @@
     <h2>1. Upload & Save Reels from Gallery</h2>
     <div class="mode-tabs">
       <button type="button" class="mode-btn active" id="btnSingle" onclick="setMode('single')">🎬 Single Reel</button>
-      <button type="button" class="mode-btn" id="btnMultiple" onclick="setMode('multiple')">📦 Multiple Pack (15–20 Reels)</button>
+      <button type="button" class="mode-btn" id="btnMultiple" onclick="setMode('multiple')">📦 Multiple Pack (Add 1 by 1 or Bulk)</button>
     </div>
 
     <label class="file-box" for="videoInput">
       <div id="fileLabelText">📁 Tap to select 1 Reel from Gallery</div>
       <input type="file" id="videoInput" accept="video/mp4,video/*" onchange="onVideosSelected()">
     </label>
+
+    <!-- QUEUED REELS LIST -->
+    <div class="queue-box" id="queueBox">
+      <div class="queue-header">
+        <span id="queueCount">0 Reel(s) Ready</span>
+        <button type="button" class="btn-clear-q" onclick="clearQueue()">Clear All</button>
+      </div>
+      <div class="queue-list" id="queueList"></div>
+    </div>
+
+    <button type="button" class="btn-add-more" id="addMoreBtn" onclick="document.getElementById('videoInput').click()">
+      ➕ Add Another Reel from Gallery
+    </button>
 
     <input type="text" id="packNameInput" placeholder="Enter Reel / Pack Name (e.g. Gym_Pack_1)">
     <button type="button" class="btn-gold" id="savePackBtn" onclick="uploadAndSavePack()">☁️ Upload to Cloud & Save</button>
@@ -171,9 +237,11 @@
 <script>
   let currentMode = "single";
   let selectedPackId = null;
+  let queuedFiles = [];
 
   function setMode(mode) {
     currentMode = mode;
+    queuedFiles = [];
     const input = document.getElementById("videoInput");
     document.getElementById("btnSingle").classList.toggle("active", mode === "single");
     document.getElementById("btnMultiple").classList.toggle("active", mode === "multiple");
@@ -181,42 +249,94 @@
     input.value = "";
     if (mode === "multiple") {
       input.setAttribute("multiple", "multiple");
-      document.getElementById("fileLabelText").innerText = "📦 Tap to select Multiple Reels (15–20) from Gallery";
+      document.getElementById("fileLabelText").innerText = "📦 Tap to select Reels (1 by 1 ya Multiple)";
     } else {
       input.removeAttribute("multiple");
       document.getElementById("fileLabelText").innerText = "📁 Tap to select 1 Reel from Gallery";
     }
+    renderQueue();
   }
 
   function onVideosSelected() {
-    const files = document.getElementById("videoInput").files;
-    if (files.length > 0) {
-      document.getElementById("fileLabelText").innerText = `✅ ${files.length} video(s) selected from Gallery`;
+    const input = document.getElementById("videoInput");
+    const newFiles = Array.from(input.files);
+    if (!newFiles.length) return;
+
+    if (currentMode === "single") {
+      queuedFiles = [newFiles[0]];
+    } else {
+      queuedFiles.push(...newFiles);
     }
+
+    input.value = "";
+    renderQueue();
+  }
+
+  function removeQueuedFile(index) {
+    queuedFiles.splice(index, 1);
+    renderQueue();
+  }
+
+  function clearQueue() {
+    queuedFiles = [];
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const queueBox = document.getElementById("queueBox");
+    const queueList = document.getElementById("queueList");
+    const queueCount = document.getElementById("queueCount");
+    const addMoreBtn = document.getElementById("addMoreBtn");
+    const fileLabel = document.getElementById("fileLabelText");
+
+    if (!queuedFiles.length) {
+      queueBox.style.display = "none";
+      addMoreBtn.style.display = "none";
+      fileLabel.innerText = currentMode === "multiple"
+        ? "📦 Tap to select Reels (1 by 1 ya Multiple)"
+        : "📁 Tap to select 1 Reel from Gallery";
+      return;
+    }
+
+    queueBox.style.display = "block";
+    queueCount.innerText = `✅ ${queuedFiles.length} Reel(s) Ready`;
+    fileLabel.innerText = currentMode === "multiple"
+      ? `✅ ${queuedFiles.length} Reel(s) added — aur add karne ke liye tap karo`
+      : `✅ 1 Reel selected (change karne ke liye tap karo)`;
+
+    addMoreBtn.style.display = currentMode === "multiple" ? "block" : "none";
+
+    queueList.innerHTML = queuedFiles.map((f, idx) => `
+      <div class="queue-item">
+        <span>${idx + 1}. ${f.name}</span>
+        <button type="button" class="rm-btn" onclick="removeQueuedFile(${idx})">✖</button>
+      </div>
+    `).join("");
   }
 
   async function uploadAndSavePack() {
-    const files = document.getElementById("videoInput").files;
     const name = document.getElementById("packNameInput").value.trim();
 
-    if (!files.length) return alert("Pehle gallery se video select karo babu!");
+    if (!queuedFiles.length) return alert("Pehle gallery se kam se kam 1 video select karo babu!");
     if (!name) return alert("Reel ya Pack ka koi naam toh de do!");
 
     const btn = document.getElementById("savePackBtn");
+    const addMoreBtn = document.getElementById("addMoreBtn");
     const pWrap = document.getElementById("progressWrap");
     const pFill = document.getElementById("progressFill");
     const pText = document.getElementById("progressText");
 
     btn.disabled = true;
+    addMoreBtn.disabled = true;
     pWrap.style.display = "block";
     const uploadedUrls = [];
 
-    for (let i = 0; i < files.length; i++) {
-      pText.innerText = `⏳ Uploading video ${i + 1} of ${files.length} to Dropbox...`;
-      pFill.style.width = `${Math.round((i / files.length) * 100)}%`;
+    for (let i = 0; i < queuedFiles.length; i++) {
+      pText.innerText = `⏳ Uploading video ${i + 1} of ${queuedFiles.length} to Dropbox...`;
+      pFill.style.width = `${Math.round((i / queuedFiles.length) * 100)}%`;
 
       const formData = new FormData();
-      formData.append("video", files[i]);
+      formData.append("video", queuedFiles[i]);
 
       try {
         const res = await fetch("/api/upload-video-dropbox", { method: "POST", body: formData });
@@ -226,6 +346,7 @@
       } catch (err) {
         alert(`Video ${i + 1} upload fail ho gaya: ` + err.message);
         btn.disabled = false;
+        addMoreBtn.disabled = false;
         return;
       }
     }
@@ -246,6 +367,7 @@
     } else {
       alert("Save error: " + saveData.error);
       btn.disabled = false;
+      addMoreBtn.disabled = false;
     }
   }
 
