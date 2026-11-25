@@ -2,22 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gojex PRO | Dashboard</title>
     <style>
-        body { background: #0f172a; color: white; font-family: Arial; padding: 50px; text-align: center; }
-        .box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; display: inline-block; margin: 10px; width: 300px; vertical-align: top;}
+        body { background: #0f172a; color: white; font-family: Arial, sans-serif; padding: 50px 20px; text-align: center; margin: 0; }
+        .box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; display: inline-block; margin: 10px; width: 300px; vertical-align: top; }
         a { text-decoration: none; display: block; background: #eab308; color: black; padding: 15px; border-radius: 6px; font-weight: bold; margin-top: 15px; }
         a:hover { background: #ca8a04; }
-        
+
         .connect-box { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px dashed #e1306c; max-width: 500px; margin: 0 auto 40px auto; }
         .btn-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-ig:hover { opacity: 0.9; }
-        
+        .btn-ig:hover { opacity: 0.9; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+
         .status-badge { background: #22c55e; color: white; padding: 12px 20px; border-radius: 8px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 16px; margin: 10px 0; }
-        .btn-disconnect { background: #ef4444; color: white; padding: 6px 15px; border-radius: 6px; font-size: 12px; font-weight: bold; text-decoration: none; border: 1px solid #b91c1c; }
+        .btn-disconnect { background: #ef4444; color: white; padding: 6px 15px; border-radius: 6px; font-size: 12px; font-weight: bold; text-decoration: none; border: 1px solid #b91c1c; margin-top: 0; display: inline-block; }
         .btn-disconnect:hover { background: #dc2626; }
         .btn-clear-all { background: transparent; color: #ef4444; border: 1px dashed #ef4444; padding: 10px; border-radius: 6px; display: block; text-decoration: none; font-size: 14px; margin-top: 20px; }
         .btn-clear-all:hover { background: #ef4444; color: white; }
+        .btn-logout { background: transparent; color: #94a3b8; border: 1px solid #334155; width: 150px; margin: 40px auto 0 auto; }
+        .btn-logout:hover { background: #334155; color: white; }
     </style>
 </head>
 <body>
@@ -28,7 +31,7 @@
     <!-- 🔗 Instagram Connection Module -->
     <div class="connect-box">
         <h3>🔌 Connected Accounts</h3>
-        
+
         {% if accounts %}
             <div style="margin-bottom: 20px; text-align: left;">
                 {% for acc in accounts %}
@@ -38,14 +41,13 @@
                     </div>
                 {% endfor %}
             </div>
-            
+
             <p style="color: #94a3b8; font-size: 13px; margin-bottom: 15px;">{{ accounts|length }} Account(s) ready for Blast Mode.</p>
-            
+
             <a href="/meta_login" class="btn-ig" style="width: 250px; margin: 20px auto 0 auto; color: white;">
                 ➕ Add Another Account
             </a>
 
-            <!-- 👇 NAYA: Delete ALL Accounts Button -->
             <a href="/disconnect_all" class="btn-clear-all">🚨 Disconnect ALL Accounts</a>
         {% else %}
             <p style="color: #cbd5e1; font-size: 14px;">Authorize your Gojex Bot to enable automated publishing.</p>
@@ -64,12 +66,12 @@
 
     <div class="box">
         <h2>📤 Manual Publisher</h2>
-        <p>Directly push a single reel instantly.</p>
+        <p>Upload single or multiple reels from gallery, save packs, and blast instantly.</p>
         <a href="/manual">Open Publisher</a>
     </div>
 
     <br><br>
-    <a href="/logout" style="background: transparent; color: #94a3b8; border: 1px solid #334155; width: 150px; margin: 40px auto 0 auto;">Logout Portal</a>
+    <a href="/logout" class="btn-logout">Logout Portal</a>
 
 </body>
 </html>
