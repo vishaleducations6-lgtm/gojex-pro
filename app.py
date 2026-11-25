@@ -1,10 +1,10 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
 import os
+import json
 import uuid
 import requests
 import time
 import threading
-import dropbox
 from datetime import timedelta
 from supabase import create_client
 
@@ -21,12 +21,11 @@ SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 📦 Dropbox Config (Gallery Videos -> ?raw=1 Meta Links)
+# 📦 Dropbox Config (Direct HTTP API - No pkg_resources crash!)
 DROPBOX_TOKEN = os.environ.get(
     "DROPBOX_TOKEN",
     "sl.u.AG4l7JIjqUOijSa0OJVMD5dAD4PvDgXZZFgvphc1l5SGXLW8XiqFSVBnHfqSt4MXvRlyekOf1Pf_fANPQB5Ie1beqk6lIaMkt8Za7supjTsGiFABY5mMBFJ3Ukrh0HUPF-9pjry6dKWEfo5vQ5iICfY9AOvvagYdi-OVP5PvxQztKFeuxnq5DQ6G0ETK_tXor9hVw7PZxfE42yazFCo4AXhOmi57CcsOUyodJR6WnythA2SUOBaZQEuKc3vVAPjbiMK-ijfFlTBrMClTnabAMwUyzn3fhQvw39vefQfLtN1yy0PjU8H5GI6w41mitvHLule8C2eCVRjUtEnnDEIAsvvS6s73BfHOY5ZMzCu3RP9wMtdrlcE5TPP6RSLMi4SIFJCcdAWMp81rvE27sXgSaorL-Cbl8Tse2ul9P5z26IM9Um_dYv9UWY2HGhLK1yaEk4GAhmrweEczsDtboWa7ap3m1xCMvCai43z7sWbcBPVG8ES5jK5w8eH6MKDzcD3hjrMLQekAePhB2G_H4lVtzxDFqrzS82Q5nK8imAs20r_tgXENMr8MC3nL9Sg_kWnlAkF31oAMPnJhKKIoUpRLkSeucxUzYw2z_Spo_lBJwHTTg8CH1mUv92x0hN85Pi6Z3blM19HlJBcYJWV2Ic4RyF9ealh6GwcpdqJs_pvsar7uUHRbPNCe2EspCtdt6NeGkkeaI5mkxWx0BEYtgJjgyBRrftAFiPMzexVkOfT4c_zdAESr_Ja-OIlxURZ123sMQfNtQEn-0ajBwmBrWLu0bDGurnliGATmOl7TcvjCYCrzaDoyQxNRco1vDOc8YaQTl6RLgtSkkMb0Vqp2Bcku3HS_EW0mnAM5juZvR5hsg1l7rL3BVPAJGuo84mQ5DWNVBhupr3N0-lmFLVLvT3Z7FcGV6KQ7PAIHkIdfdpawAY1Y9Ndu4YfjpIr6VWL2fTX8-IPBBC9OnTymn5wuMkLFt30Us7nQ_nmQqDqT2iYk70Ox9uet73bbCWWdyAks86a8kQMkiAwPVT0-WqksoUsnA-P4bec0gMviKj-cnAQ4Ks3IKUsupYAUuiSQutTyXnA8h8WlrVBdKR2xHyJ3dKLmJCntKR1wRX8Gh8bmGXMv6B0MokDpWJ0R9-Y8eMYlouk29nG0alOcvGRjHQttaVGSVggCa4pzL6W-iaKEQZYKL0SBB1ktWjh4PoZFz5RxpTOcZbxhK3I4-zPY_OVyhw0Yw619fXloeNEKb4w8wKRSDyODIn5hXrzkI-QaqYUb10aj-0XsqkCTSKjHhSvzFET6__QTxV4ODL6_EIdiXFJlIh_fKH9XsB6Gq2eRMInKGpgjYYNFqxwW_0kK2bJsWOs8FuSfdNSxoS-uotYhetbt3G6kMPrWnpzkzzO1hjAAQ442qdaMsl3pmHqScD_q5aPS4GbudBvaBp3n8j9wAKx9Cfqor8PnTdLkZbty82PjC6JRllA5GgxG8v5hTPPEGF_ZHN-w"
 )
-dbx = dropbox.Dropbox(DROPBOX_TOKEN)
 
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
@@ -40,6 +39,62 @@ BLAST_STATUS = {
 }
 
 MANUAL_JOBS = {}
+
+
+def dropbox_upload_and_get_raw_link(file_bytes, dropbox_path):
+    # 1. Upload file to Dropbox
+    upload_res = requests.post(
+        "https://content.dropboxapi.com/2/files/upload",
+        headers={
+            "Authorization": f"Bearer {DROPBOX_TOKEN}",
+            "Dropbox-API-Arg": json.dumps({
+                "path": dropbox_path,
+                "mode": "overwrite",
+                "autorename": True,
+                "mute": False
+            }),
+            "Content-Type": "application/octet-stream"
+        },
+        data=file_bytes,
+        timeout=120
+    )
+    if upload_res.status_code != 200:
+        raise Exception(f"Dropbox Upload Failed ({upload_res.status_code}): {upload_res.text}")
+
+    # 2. Create Shared Link
+    link_res = requests.post(
+        "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
+        headers={
+            "Authorization": f"Bearer {DROPBOX_TOKEN}",
+            "Content-Type": "application/json"
+        },
+        json={"path": dropbox_path},
+        timeout=30
+    )
+
+    raw_url = None
+    if link_res.status_code == 200:
+        raw_url = link_res.json().get("url")
+    else:
+        # Agar link already exist karta hai toh list_shared_links se nikal lo
+        list_res = requests.post(
+            "https://api.dropboxapi.com/2/sharing/list_shared_links",
+            headers={
+                "Authorization": f"Bearer {DROPBOX_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={"path": dropbox_path, "direct_only": True},
+            timeout=30
+        )
+        if list_res.status_code == 200 and list_res.json().get("links"):
+            raw_url = list_res.json()["links"][0].get("url")
+        else:
+            raise Exception(f"Dropbox Share Link Failed: {link_res.text}")
+
+    if not raw_url:
+        raise Exception("Dropbox link generate nahi ho paya.")
+
+    return raw_url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
 
 
 def process_single_post(reel, acc, cover_url, caption_text):
@@ -456,18 +511,7 @@ def upload_video_dropbox():
         file_bytes = video_file.read()
         dropbox_path = f"/gojex_reels/{int(time.time())}_{uuid.uuid4().hex[:6]}.mp4"
 
-        dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-
-        try:
-            shared_meta = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-            raw_url = shared_meta.url
-        except dropbox.exceptions.ApiError as err:
-            if err.error.is_shared_link_already_exists():
-                raw_url = err.error.get_shared_link_already_exists().metadata.url
-            else:
-                raise err
-
-        vip_url = raw_url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
+        vip_url = dropbox_upload_and_get_raw_link(file_bytes, dropbox_path)
         return jsonify({"success": True, "url": vip_url})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
