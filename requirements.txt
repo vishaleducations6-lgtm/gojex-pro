@@ -2,3 +2,5 @@ Flask
 requests
 gunicorn
 supabase
+dropbox==11.36.2
+setuptools
