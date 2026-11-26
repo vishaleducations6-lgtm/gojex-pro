@@ -21,11 +21,19 @@ SUPABASE_URL = "https://pinfpgaybbrxtknnvbnf.supabase.co"
 SUPABASE_KEY = "sb_publishable_2_dv36ZkyQlgIirREoHPyA_albdgTSB"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 📦 Dropbox Config (Direct HTTP API - No pkg_resources crash!)
-DROPBOX_TOKEN = os.environ.get(
-    "DROPBOX_TOKEN",
-    "sl.u.AG4l7JIjqUOijSa0OJVMD5dAD4PvDgXZZFgvphc1l5SGXLW8XiqFSVBnHfqSt4MXvRlyekOf1Pf_fANPQB5Ie1beqk6lIaMkt8Za7supjTsGiFABY5mMBFJ3Ukrh0HUPF-9pjry6dKWEfo5vQ5iICfY9AOvvagYdi-OVP5PvxQztKFeuxnq5DQ6G0ETK_tXor9hVw7PZxfE42yazFCo4AXhOmi57CcsOUyodJR6WnythA2SUOBaZQEuKc3vVAPjbiMK-ijfFlTBrMClTnabAMwUyzn3fhQvw39vefQfLtN1yy0PjU8H5GI6w41mitvHLule8C2eCVRjUtEnnDEIAsvvS6s73BfHOY5ZMzCu3RP9wMtdrlcE5TPP6RSLMi4SIFJCcdAWMp81rvE27sXgSaorL-Cbl8Tse2ul9P5z26IM9Um_dYv9UWY2HGhLK1yaEk4GAhmrweEczsDtboWa7ap3m1xCMvCai43z7sWbcBPVG8ES5jK5w8eH6MKDzcD3hjrMLQekAePhB2G_H4lVtzxDFqrzS82Q5nK8imAs20r_tgXENMr8MC3nL9Sg_kWnlAkF31oAMPnJhKKIoUpRLkSeucxUzYw2z_Spo_lBJwHTTg8CH1mUv92x0hN85Pi6Z3blM19HlJBcYJWV2Ic4RyF9ealh6GwcpdqJs_pvsar7uUHRbPNCe2EspCtdt6NeGkkeaI5mkxWx0BEYtgJjgyBRrftAFiPMzexVkOfT4c_zdAESr_Ja-OIlxURZ123sMQfNtQEn-0ajBwmBrWLu0bDGurnliGATmOl7TcvjCYCrzaDoyQxNRco1vDOc8YaQTl6RLgtSkkMb0Vqp2Bcku3HS_EW0mnAM5juZvR5hsg1l7rL3BVPAJGuo84mQ5DWNVBhupr3N0-lmFLVLvT3Z7FcGV6KQ7PAIHkIdfdpawAY1Y9Ndu4YfjpIr6VWL2fTX8-IPBBC9OnTymn5wuMkLFt30Us7nQ_nmQqDqT2iYk70Ox9uet73bbCWWdyAks86a8kQMkiAwPVT0-WqksoUsnA-P4bec0gMviKj-cnAQ4Ks3IKUsupYAUuiSQutTyXnA8h8WlrVBdKR2xHyJ3dKLmJCntKR1wRX8Gh8bmGXMv6B0MokDpWJ0R9-Y8eMYlouk29nG0alOcvGRjHQttaVGSVggCa4pzL6W-iaKEQZYKL0SBB1ktWjh4PoZFz5RxpTOcZbxhK3I4-zPY_OVyhw0Yw619fXloeNEKb4w8wKRSDyODIn5hXrzkI-QaqYUb10aj-0XsqkCTSKjHhSvzFET6__QTxV4ODL6_EIdiXFJlIh_fKH9XsB6Gq2eRMInKGpgjYYNFqxwW_0kK2bJsWOs8FuSfdNSxoS-uotYhetbt3G6kMPrWnpzkzzO1hjAAQ442qdaMsl3pmHqScD_q5aPS4GbudBvaBp3n8j9wAKx9Cfqor8PnTdLkZbty82PjC6JRllA5GgxG8v5hTPPEGF_ZHN-w"
-)
+# 📦 Dropbox Config (Lifetime Auto-Refresh)
+DROPBOX_APP_KEY = os.environ.get("DROPBOX_APP_KEY", "cocv4248l0ky3mg")
+DROPBOX_APP_SECRET = os.environ.get("DROPBOX_APP_SECRET", "xjf4c4zasj9fiuo")
+DROPBOX_REDIRECT_URI = "https://babu-pro.onrender.com/dropbox_callback"
+
+DROPBOX_STATE = {
+    "refresh_token": os.environ.get("DROPBOX_REFRESH_TOKEN", ""),
+    "access_token": os.environ.get(
+        "DROPBOX_TOKEN",
+        "sl.u.AG78dCErKcK17RZ6mArHteh3e2sjwMoYSYLArTrI0yn6snIhJexaQRrMWVkQoK6QrJhA5AgQ8JOSS-fQDyQ6jdLjWgenYS1VvMC7aw8Zt7D9c_juksWHj-eMTvW6ghhIT-LTR4MGCRwOgT3zp2Wb3_PSno81-RZDTzTN9p_g43Qi034kWsYXaMFHrPkoksn0o7ejL5Jb-_vit8muM2xDlKDHnhrmraPYizTyb0G3PPElGUOJMndCNza2SQq4-xYdUX_xsAibR5q5cGqGQz0L8kVsN-To8MNxyCjmTYsGZ0r39JD0cjqUXfYqiTBUP8k1ZkCITS_BVar9_AGDE9B1Q6HKyL4ZRiKhCoKrJcDspGRfLlTVIdlHF70dVN1gJjQ7T8QDeu7y4LBFU5LtrSR-NLBjtp0OEnVm9TV3x3WtDAV8uXwn81upR5MzreV32GDHbYojyNb7eYqLg9g0Xw0dQY6sQ1zOVjekepQMawp_ezkE8zoNMT3WSiFJr4v8ZFCIzbq3OXYTROK4c1F0RlozHu1ji7BDZzNkMuO2vKQZpKOnhsERffNd2vh2Pd7DR9HaimGvuJGK3_Ub9MoXBTD8ccHsjD7CAnERC2k_S0xaOUZtuZYpNbxapw2QZz5fc9gtM6TPxft0cztw-2p5V6CuwEkIKxWMqds9cWbpTwhNCq2RuPicw3W3HSDz_qlwI2j1l32aNmLfjPBR3tYiWU5dYXlXzWo4nKQc3eU5-09_ILFKfaNYuyid3UcDG15nBiB1F3i7XsaYy5eHoW_fhWwf1IGYkwRi9NfhoAayOjc1fPbj0wo4v6xB8Zo_dHLEtSHss40IQx5zSyPS_9wJL8dAZIEJbA3o8kYf1UOTMfrzYsGgfB4xVSQykO0_nuEZYYjggZd7OQVUqMMcAAnRyvSXHFLJdUdVDkk2iFbjsxEGPZeO8r0CTDebjrbD6kyb65z5UC7lTnusejnsgj--Qp4-HFq3MNCZpXoZFLjf2NWfIfS3bkAmhrjdRedFycuw2Rj0yPvNM_2Ej53ilZFI-3nNxPIila5xLe9rgsJwrrYDb1YGpf9WQmsV9n4wooUWGfNVCXT5BI6235u2jSzvyH82RYawgsCYYtGn7KFDs6QAPczUBkNB3HoaO1__H725OHnILHDElnyaTuDdlEdkVyNGb4u6yVPOr5QhcqimI47ZN5GcwjI5Og41LoaYLzPqeO-2I_jlr0ZiO93_AJEvJY_ohdqM2SXD66HEqVum2UL30aYosh2Fc26uHFaf1mXU8G6svSRQ8QOyJrjY9A8Q5RXeudhQp1jBw7yzyPNSrSXY8qifOTtUW7p7rWERXMSb9sK4LgkgvI9uJoSNeKCqYP366sfNZrr1mnJP49E__nSUDm4ai3Bn32mOPn2sd5IlleqFmTm2snBP2nzpgfFr4CQK84xmN1vL0X8NZtFDgmzj2vAWXw"
+    ),
+    "expires_at": 0
+}
 
 META_APP_ID = "1412413731007169"
 META_APP_SECRET = "46dd9dd47263567e27916e85eb086e0b"
@@ -41,12 +49,41 @@ BLAST_STATUS = {
 MANUAL_JOBS = {}
 
 
+def get_valid_dropbox_token():
+    # Agar refresh_token set hai toh khud naya fresh access_token le aayega
+    if DROPBOX_STATE["refresh_token"]:
+        if time.time() < DROPBOX_STATE["expires_at"] and DROPBOX_STATE["access_token"]:
+            return DROPBOX_STATE["access_token"]
+
+        res = requests.post(
+            "https://api.dropboxapi.com/oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": DROPBOX_STATE["refresh_token"],
+                "client_id": DROPBOX_APP_KEY,
+                "client_secret": DROPBOX_APP_SECRET,
+            },
+            timeout=20
+        )
+        if res.status_code != 200:
+            raise Exception(f"Dropbox Refresh Failed: {res.text}")
+
+        token_data = res.json()
+        DROPBOX_STATE["access_token"] = token_data["access_token"]
+        DROPBOX_STATE["expires_at"] = time.time() + int(token_data.get("expires_in", 14400)) - 300
+        return DROPBOX_STATE["access_token"]
+
+    return DROPBOX_STATE["access_token"]
+
+
 def dropbox_upload_and_get_raw_link(file_bytes, dropbox_path):
+    token = get_valid_dropbox_token()
+
     # 1. Upload file to Dropbox
     upload_res = requests.post(
         "https://content.dropboxapi.com/2/files/upload",
         headers={
-            "Authorization": f"Bearer {DROPBOX_TOKEN}",
+            "Authorization": f"Bearer {token}",
             "Dropbox-API-Arg": json.dumps({
                 "path": dropbox_path,
                 "mode": "overwrite",
@@ -65,7 +102,7 @@ def dropbox_upload_and_get_raw_link(file_bytes, dropbox_path):
     link_res = requests.post(
         "https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings",
         headers={
-            "Authorization": f"Bearer {DROPBOX_TOKEN}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         },
         json={"path": dropbox_path},
@@ -76,11 +113,10 @@ def dropbox_upload_and_get_raw_link(file_bytes, dropbox_path):
     if link_res.status_code == 200:
         raw_url = link_res.json().get("url")
     else:
-        # Agar link already exist karta hai toh list_shared_links se nikal lo
         list_res = requests.post(
             "https://api.dropboxapi.com/2/sharing/list_shared_links",
             headers={
-                "Authorization": f"Bearer {DROPBOX_TOKEN}",
+                "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
             },
             json={"path": dropbox_path, "direct_only": True},
@@ -128,7 +164,6 @@ def process_single_post(reel, acc, cover_url, caption_text):
 
         BLAST_STATUS['logs'].insert(0, f"⌛ @{username} is scanning the video. Waiting for Meta to process...")
 
-        # 30 steps * 10 seconds = 5 Minutes total wait time
         is_ready = False
         for step in range(30):
             time.sleep(10)
@@ -227,7 +262,6 @@ def run_manual_blast_worker(job_id, video_urls, caption, cover_url, selected_acc
                     MANUAL_JOBS[job_id]["logs"].append(f"❌ @{username} | Reel {idx} Container Error: {err_msg}")
                     continue
 
-                # 5-Minute Polling Loop (30 steps x 10 sec)
                 is_ready = False
                 for _ in range(30):
                     time.sleep(10)
@@ -268,6 +302,63 @@ def run_manual_blast_worker(job_id, video_urls, caption, cover_url, selected_acc
 
     MANUAL_JOBS[job_id]["done"] = True
     MANUAL_JOBS[job_id]["logs"].append("🏁 ALL DONE! Manual Blast Completed!")
+
+
+# ========================
+# DROPBOX 1-CLICK LIFETIME AUTH
+# ========================
+@app.route('/dropbox_login')
+def dropbox_login():
+    if not session.get('logged_in'):
+        return redirect('/')
+    auth_url = (
+        f"https://www.dropbox.com/oauth2/authorize"
+        f"?client_id={DROPBOX_APP_KEY}"
+        f"&token_access_type=offline"
+        f"&response_type=code"
+        f"&redirect_uri={DROPBOX_REDIRECT_URI}"
+    )
+    return redirect(auth_url)
+
+
+@app.route('/dropbox_callback')
+def dropbox_callback():
+    code = request.args.get('code')
+    if not code:
+        return "❌ Dropbox Login Cancelled.<br><a href='/dashboard'>Back</a>"
+
+    res = requests.post(
+        "https://api.dropboxapi.com/oauth2/token",
+        data={
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": DROPBOX_REDIRECT_URI,
+            "client_id": DROPBOX_APP_KEY,
+            "client_secret": DROPBOX_APP_SECRET,
+        },
+        timeout=30
+    ).json()
+
+    refresh_token = res.get("refresh_token")
+    access_token = res.get("access_token")
+
+    if not refresh_token:
+        return f"<h3>❌ Refresh Token nahi mila:</h3><pre>{res}</pre><a href='/dashboard'>Back</a>"
+
+    # Abhi turant live kar do
+    DROPBOX_STATE["refresh_token"] = refresh_token
+    DROPBOX_STATE["access_token"] = access_token
+    DROPBOX_STATE["expires_at"] = time.time() + int(res.get("expires_in", 14400)) - 300
+
+    return f"""
+    <div style='background:#0f172a;color:#fff;font-family:sans-serif;padding:30px;min-height:100vh;'>
+      <h2 style='color:#22c55e;'>✅ Dropbox Lifetime Token Ready!</h2>
+      <p>Abhi turant ke liye activate ho gaya hai. Hamesha ke liye save karne ke liye ye token copy karke Render ke <b>Environment Variables</b> me <code>DROPBOX_REFRESH_TOKEN</code> naam se daal de:</p>
+      <textarea style='width:100%;height:90px;padding:10px;border-radius:8px;background:#1e293b;color:#facc15;font-size:14px;' readonly>{refresh_token}</textarea>
+      <br><br>
+      <a href='/manual' style='background:#eab308;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold;'>🚀 Open Manual Publisher</a>
+    </div>
+    """
 
 
 # ========================
